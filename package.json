@@ -1,0 +1,36 @@
+{
+  "name": "beigebox",
+  "private": true,
+  "version": "0.1.0",
+  "description": "A nostalgic beige PC on your desk — v86 in the browser, with drives you click",
+  "license": "MIT",
+  "type": "module",
+  "scripts": {
+    "prepare-assets": "node scripts/prepare-assets.mjs",
+    "dev": "node scripts/prepare-assets.mjs && vite",
+    "build": "node scripts/prepare-assets.mjs && vite build",
+    "preview": "vite preview",
+    "typecheck": "svelte-check --tsconfig ./tsconfig.json"
+  },
+  "dependencies": {
+    "@emdzej/csfs-core": "^0.3.0",
+    "@emdzej/csfs-fsa": "^0.3.0",
+    "@emdzej/csfs-http": "^0.3.0",
+    "@emdzej/csfs-opfs": "^0.3.0",
+    "@emdzej/csfs-zip": "^0.3.0",
+    "@fontsource/caveat": "^5.3.0",
+    "@fontsource/permanent-marker": "^5.3.0",
+    "@fontsource/vt323": "^5.3.0",
+    "v86": "^0.5.473"
+  },
+  "devDependencies": {
+    "@emdzej/csfs-cli": "^0.3.0",
+    "@sveltejs/vite-plugin-svelte": "^7.3.1",
+    "@tsconfig/svelte": "^5.0.8",
+    "svelte": "^5.57.1",
+    "svelte-check": "^4.7.6",
+    "typescript": "^5.7.3",
+    "vite": "^8.3.1"
+  },
+  "packageManager": "pnpm@12.16.1"
+}

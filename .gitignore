@@ -1,0 +1,8 @@
+node_modules
+dist
+public/v86/v86.wasm
+public/media/csfs-manifest.json
+art/raw
+art/cut
+art/preview
+.DS_Store

@@ -1,0 +1,18 @@
+:root {
+  color-scheme: dark;
+  background: #0d0a07;
+}
+html,
+body {
+  margin: 0;
+  height: 100%;
+  overflow: hidden;
+}
+body {
+  font-family: system-ui, sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+button:focus-visible {
+  outline: 2px solid #ffd27a;
+  outline-offset: 2px;
+}

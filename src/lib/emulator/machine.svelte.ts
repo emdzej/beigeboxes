@@ -102,6 +102,13 @@ export class Machine {
     return this.power !== "off";
   }
 
+  /** What the guest shows right now, as a PNG; null when the screen is dark. */
+  async screenshot(): Promise<Blob | null> {
+    const canvas = this.screenEl?.querySelector("canvas");
+    if (!canvas || this.power === "off" || !canvas.width || !canvas.height) return null;
+    return new Promise((resolve) => canvas.toBlob(resolve, "image/png"));
+  }
+
   // --- power ---------------------------------------------------------------
 
   async togglePower(): Promise<void> {

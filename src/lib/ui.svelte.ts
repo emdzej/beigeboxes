@@ -1,7 +1,7 @@
 import { loadLibrary, type MediaItem, type MediaKind } from "./media/library";
 import { machine } from "./emulator/machine.svelte";
 
-export type Overlay = "floppies" | "cds" | "drawer" | "setup" | null;
+export type Overlay = "floppies" | "cds" | "drawer" | "setup" | "support" | null;
 
 /** What is open on the desk, and everything that can be put in a drive. */
 class Ui {

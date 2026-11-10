@@ -12,6 +12,9 @@ A 1996 PC on a teenager's desk, in your browser. Press the big **POWER** button.
   in with the power off.
 - **Setup notes** pinned to the cork board: tower or desktop case, CRT or LCD,
   RAM, network card, and the modem's phone book.
+- **Tech support**: the flyer on the cork board. Say what's wrong, add a picture of
+  the screen (black out what it shouldn't show), and the answers come back live —
+  anonymously, through [ALIAS](https://getalias.support). [What's kept](public/privacy.html).
 - **Drop** any `.img`, `.iso` or `.zip` onto the page and it is filed in the right place.
 
 Click the monitor to lean in; click again to capture the mouse.
@@ -35,6 +38,14 @@ Click the monitor to lean in; click again to capture the mouse.
 - **Network**: an NE2000 on the `fetch` backend (HTTP, no server) or a WebSocket
   ethernet relay. **Modem**: Hayes 56K on COM2, dialling WebSocket URLs from the
   phone book (`ATDT 5551234`).
+
+## Tech support
+
+Calls go to the `beigebox` product on the ALIAS desk at `help.getalias.support`, made with
+`aliasctl products apply` (its settings: `aliasctl products export beigebox`). The browser key in
+`src/lib/support.svelte.ts` names the product and only works from its origins; a new one is
+`aliasctl keys issue beigebox <name>`. Answer with `aliasctl tickets list --product beigebox` and
+`aliasctl tickets answer beigebox <id>`, or from the panel.
 
 ## Develop
 

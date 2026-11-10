@@ -190,6 +190,9 @@ importers:
       '@fontsource/vt323':
         specifier: ^5.3.0
         version: 5.3.0
+      alias-support:
+        specifier: ^0.5.2
+        version: 0.5.2
       v86:
         specifier: ^0.5.473
         version: 0.5.473
@@ -413,6 +416,10 @@ packages:
     resolution: {integrity: sha512-oJlA3XiRm7Cyk6qFD2Jn8ak9B7jSy0qy00ADO3+8dpT0LSjFihQYv4C02LFCSYJV3Q37xYwwRy5m+IpIiUzqWw==}
     engines: {node: '>=0.4.0'}
     hasBin: true
+
+  alias-support@0.5.2:
+    resolution: {integrity: sha512-oExx1Xe/oU2l6Zpi90Wrf/cc4r/zjeEzL/dYubl+lQrMFqk8GJRQNPlc15Li4feyHBWn2gilVzxCyN5kuSWlyg==}
+    engines: {node: '>=18'}
 
   aria-query@5.3.1:
     resolution: {integrity: sha512-Z/ZeOgVl7bcSYZ/u/rh0fOpvEpq//LZmdbkXyc7syVzjPAhfOa9ebsdTSjEBDU4vs5nC98Kfduj1uFo0qyET3g==}
@@ -826,6 +833,8 @@ snapshots:
   '@zip.js/zip.js@2.24.0': {}
 
   acorn@8.19.0: {}
+
+  alias-support@0.5.2: {}
 
   aria-query@5.3.1: {}
 

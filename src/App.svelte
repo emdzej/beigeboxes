@@ -7,6 +7,8 @@
   import CdWallet from "./lib/overlays/CdWallet.svelte";
   import Drawer from "./lib/overlays/Drawer.svelte";
   import Setup from "./lib/overlays/Setup.svelte";
+  import TechSupport from "./lib/overlays/TechSupport.svelte";
+  import { support } from "./lib/support.svelte";
   import { TOWER, DESKTOP, CRT, LCD } from "./lib/hardware/geometry";
   import { machine } from "./lib/emulator/machine.svelte";
   import { ui } from "./lib/ui.svelte";
@@ -92,6 +94,7 @@
 
   onMount(() => {
     void ui.refresh();
+    support.start();
     const ro = new ResizeObserver(computeLean);
     ro.observe(stage);
     return () => ro.disconnect();
@@ -115,6 +118,18 @@
       <!-- the setup card, pinned to the cork board -->
       <button class="pinned card" onclick={() => ui.open("setup")} title="Setup notes">
         <b>MY PC</b><br />setup &amp; phone #s
+      </button>
+
+      <!-- the tech support flyer, with tear-off tabs; one's already gone -->
+      <button class="pinned flyer" onclick={() => ui.open("support")} title="Tech support">
+        <b>COMPUTER<br />TROUBLE?</b>
+        <span>Friendly tech support. No appointment, no name needed.</span>
+        <span class="tabs">
+          {#each [0, 1, 2, 3, 4, 5] as i}
+            <i class:gone={i === 2}>TECH SUPPORT</i>
+          {/each}
+        </span>
+        {#if support.unread}<em class="badge">{support.unread} new!</em>{/if}
       </button>
 
       <!-- floppy box, left of the monitor -->
@@ -181,6 +196,7 @@
   {#if ui.overlay === "cds"}<CdWallet />{/if}
   {#if ui.overlay === "drawer"}<Drawer />{/if}
   {#if ui.overlay === "setup"}<Setup />{/if}
+  {#if ui.overlay === "support"}<TechSupport />{/if}
 </main>
 
 <style>
@@ -351,6 +367,59 @@
   .pinned:hover {
     rotate: -1deg;
     scale: 1.08;
+  }
+  .flyer {
+    /* On the cork board, right of the setup card. */
+    left: 14.5%;
+    top: 5.5cqw;
+    width: 10.5cqw;
+    padding: 0.8cqw 0.7cqw 0;
+    background: #f7f1e1;
+    color: #222;
+    font: 600 1cqw/1.15 "Caveat", cursive;
+    text-align: center;
+    rotate: 2.5deg;
+  }
+  .flyer b {
+    display: block;
+    margin-bottom: 0.3cqw;
+    font: 1.55cqw/1 "Permanent Marker", cursive;
+    color: #1b2a6b;
+  }
+  .flyer::before {
+    background: radial-gradient(circle at 35% 35%, #8ab8ff, #1d4fb0);
+  }
+  .flyer:hover {
+    rotate: 1deg;
+  }
+  .tabs {
+    display: flex;
+    margin: 0.6cqw -0.7cqw 0;
+    border-top: 0.1cqw dashed #999;
+  }
+  .tabs i {
+    flex: 1;
+    height: 4.6cqw;
+    border-right: 0.1cqw dashed #bbb;
+    writing-mode: vertical-rl;
+    font: normal 0.75cqw/1 "VT323", monospace;
+    color: #333;
+    display: grid;
+    place-items: center;
+  }
+  .tabs i.gone {
+    visibility: hidden;
+  }
+  .badge {
+    position: absolute;
+    top: -0.6cqw;
+    right: -1.2cqw;
+    padding: 0.15cqw 0.5cqw;
+    background: #9b1d20;
+    color: #fff;
+    font: normal 0.95cqw "Permanent Marker", cursive;
+    rotate: 8deg;
+    box-shadow: 0 0.2cqw 0.4cqw rgb(0 0 0 / 0.5);
   }
   /* The drawer in the photo: x 1.3–27cqw, y 46.8–53.4cqw. */
   .drawer-gap,

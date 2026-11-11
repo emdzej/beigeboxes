@@ -10,7 +10,7 @@
 let ctx: AudioContext | null = null;
 let master: GainNode | null = null;
 let fan: { stop(): void } | null = null;
-let muted = localStorage.getItem("beigebox:muted") === "1";
+let muted = localStorage.getItem("beigeboxes:muted") === "1";
 let lastSeek = 0;
 
 function audio(): { ctx: AudioContext; out: GainNode } | null {
@@ -72,7 +72,7 @@ export const sfx = {
   },
   setMuted(value: boolean) {
     muted = value;
-    localStorage.setItem("beigebox:muted", value ? "1" : "0");
+    localStorage.setItem("beigeboxes:muted", value ? "1" : "0");
     if (value) {
       fan?.stop();
       fan = null;
@@ -177,6 +177,15 @@ export const sfx = {
     tone({ freq: 2100, dur: 0.9, gain: 0.04, type: "sine", delay: 1.4 });
     tone({ freq: 1200, to: 2400, dur: 0.5, gain: 0.03, type: "square", delay: 2.3 });
     burst({ dur: 1.4, freq: 1800, q: 0.7, gain: 0.08, delay: 2.8 });
+  },
+
+  /** A BIOS beep code from the PC speaker: lengths in ms, with short gaps. */
+  beeps(lengths: number[]) {
+    let at = 0.4;
+    for (const ms of lengths) {
+      tone({ freq: 880, dur: ms / 1000, gain: 0.05, delay: at });
+      at += ms / 1000 + 0.15;
+    }
   },
 
   degauss() {

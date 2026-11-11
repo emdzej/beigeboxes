@@ -1,9 +1,9 @@
 {
-  "name": "beigebox",
+  "name": "beigeboxes",
   "private": true,
   "version": "0.1.0",
   "description": "A nostalgic beige PC on your desk — v86 in the browser, with drives you click",
-  "license": "MIT",
+  "license": "GPL-3.0-or-later",
   "type": "module",
   "scripts": {
     "prepare-assets": "node scripts/prepare-assets.mjs",
@@ -22,6 +22,7 @@
     "@fontsource/permanent-marker": "^5.3.0",
     "@fontsource/vt323": "^5.3.0",
     "alias-support": "^0.5.2",
+    "jsnes": "2.1.0",
     "v86": "^0.5.473"
   },
   "devDependencies": {

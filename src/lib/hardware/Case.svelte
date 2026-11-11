@@ -21,6 +21,7 @@
 
   function floppyClick() {
     if (machine.fda) return;
+    ui.floppyTarget = "fda";
     ui.open("floppies");
   }
 
@@ -52,7 +53,7 @@
   const on = $derived(machine.power !== "off");
 </script>
 
-<div class="case" style="aspect-ratio:{geo.size[0]}/{geo.size[1]}">
+<div class="case">
   <img src={geo.image} alt="A beige PC case" draggable="false" />
 
   <!-- power, reset, turbo -->
@@ -145,7 +146,9 @@
   img {
     display: block;
     width: 100%;
-    height: 100%;
+    /* The photo sets the box's height, so everything placed over it in
+       fractions lands where it is drawn, in every browser. */
+    height: auto;
     user-select: none;
   }
   button {

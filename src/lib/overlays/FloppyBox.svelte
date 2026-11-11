@@ -3,9 +3,20 @@
   import Floppy from "../media/Floppy.svelte";
   import { ui } from "../ui.svelte";
   import { machine } from "../emulator/machine.svelte";
-  import { importToDrawer, newFloppy, type MediaItem } from "../media/library";
+  import { importToDrawer, newFloppy, XT_FLOPPY_MAX, type MediaItem } from "../media/library";
 
-  const disks = $derived(ui.of("floppy").filter((m) => m.id !== machine.fda?.id));
+  /** The XT and the 1541 take 5¼" disks; the XT's are double density, so only those it can read are in its box. */
+  const five = $derived(machine.model.id === "pc-xt" || machine.model.id === "c64");
+  const xt = $derived(machine.model.id === "pc-xt");
+  const amiga = $derived(machine.model.id === "amiga-500");
+  /** A blank to format: the PCs format raw images, AmigaDOS an empty ADF. A 1541 blank needs a real 1541 ROM. */
+  const blanks = $derived(machine.model.id !== "c64");
+  const disks = $derived(
+    ui.of("floppy").filter((m) => m.id !== machine.fda?.id && m.id !== machine.fdb?.id && (!xt || m.size <= XT_FLOPPY_MAX)),
+  );
+  const accept = $derived((machine.model.formats ?? ["img", "ima", "vfd", "flp", "dsk"]).map((f) => `.${f}`).join(",") + ",.zip");
+  const drive = $derived(ui.floppyTarget);
+  const letter = $derived(drive === "fdb" ? "B" : "A");
   let picked = $state<string | null>(null);
   let fileInput: HTMLInputElement;
 
@@ -14,17 +25,18 @@
     // Let the disk fly out of the box before the box goes away.
     await new Promise((r) => setTimeout(r, 420));
     ui.close();
-    await machine.insertFloppy(media);
-    ui.say(`A: ${media.label}`);
+    await machine.insertFloppy(media, drive);
+    ui.floppyTarget = "fda";
+    ui.say(`${letter}: ${media.label}`);
   }
 
   async function blank() {
     const name = prompt("Write a label for the new diskette:", "MY DISK");
     if (!name) return;
-    const media = await newFloppy(name);
+    const media = await newFloppy(name, amiga ? 901_120 : xt ? 368_640 : 1_474_560, amiga ? "adf" : "img");
     if (!media) return ui.say("No room: this browser has no private storage.");
     await ui.refresh();
-    ui.say(`New 1.44MB diskette "${name}" — format it with FORMAT A:`);
+    ui.say(amiga ? `New 880KB disk "${name}" — format it from the Workbench` : `New ${xt ? "360KB" : "1.44MB"} diskette "${name}" — format it with FORMAT ${letter}:`);
   }
 
   async function imported(e: Event) {
@@ -50,18 +62,18 @@
           onclick={() => insert(media)}
           title="Insert {media.label}"
         >
-          <Floppy {media} stored />
+          <Floppy {media} stored {five} />
         </button>
       {/each}
       {#if !disks.length}<p class="empty">Empty. Every disk is in a drive.</p>{/if}
     </div>
     <div class="extras">
-      <button onclick={blank}>+ blank disk</button>
+      {#if blanks}<button onclick={blank}>+ blank disk</button>{/if}
       <button onclick={() => fileInput.click()}>+ disk from a file…</button>
     </div>
-    <p class="hint">Pick a disk to put it in drive A:. Your own disks keep what you write to them.</p>
+    <p class="hint">Pick a disk to put it in {amiga ? "DF0:" : machine.model.id === "c64" ? "drive 8" : `drive ${letter}:`}. Your own disks keep what you write to them.</p>
   </div>
-  <input bind:this={fileInput} type="file" multiple accept=".img,.ima,.vfd,.flp,.dsk,.zip" hidden onchange={imported} />
+  <input bind:this={fileInput} type="file" multiple {accept} hidden onchange={imported} />
 </Overlay>
 
 <style>

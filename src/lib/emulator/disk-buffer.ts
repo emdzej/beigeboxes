@@ -84,7 +84,7 @@ export class CsfsDiskBuffer {
       .catch((err: unknown) => {
         // v86 has no error path for a disk read; the guest sees zeros and
         // reports its own I/O error, which is what a bad sector looks like.
-        console.error(`beigebox: read ${this.file.path} @${offset}+${len}`, err);
+        console.error(`beigeboxes: read ${this.file.path} @${offset}+${len}`, err);
         fn(new Uint8Array(len));
       });
   }

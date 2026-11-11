@@ -21,4 +21,4 @@ for (const bios of ["seabios.bin", "vgabios.bin"]) {
   if (!existsSync(`public/v86/${bios}`)) throw new Error(`public/v86/${bios} is missing — copy it from v86's bios/`);
 }
 
-execFileSync("csfs", ["manifest", "public/media", "--label", "beigebox shelf"], { stdio: "inherit", shell: process.platform === "win32" });
+execFileSync("csfs", ["manifest", "public/media", "--label", "beigeboxes shelf"], { stdio: "inherit", shell: process.platform === "win32" });

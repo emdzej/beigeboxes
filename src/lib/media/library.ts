@@ -6,7 +6,8 @@ import { fsaFileSystem, isFsaSupported, pickDirectory } from "@emdzej/csfs-fsa";
 import { withArchives, zipFileSystem } from "@emdzej/csfs-zip";
 import { BUNDLED } from "./bundled";
 
-export type MediaKind = "floppy" | "cdrom" | "hdd";
+/** Where it goes: a floppy drive, the CD-ROM, the IDE cable, a cartridge slot, or the tape deck. */
+export type MediaKind = "floppy" | "cdrom" | "hdd" | "cart" | "tape";
 
 /** Where a disk physically lives on the desk. */
 export type MediaHome =
@@ -26,6 +27,8 @@ export interface MediaItem {
   /** Diskette plastic / label pen colour; stable per item. */
   readonly color: string;
   readonly size: number;
+  /** Its file extension, lower case: which machines can read it (`Model.formats`). */
+  readonly format: string;
   readonly home: MediaHome;
   readonly fs: CsFileSystem;
   /** Path within `fs`; may address inside a zip with `#`. */
@@ -36,8 +39,18 @@ export interface MediaItem {
 const FLOPPY_MAX = 2_949_120;
 const DISK_EXT = /\.(img|ima|vfd|flp|dsk|iso|hdd|hda|raw|bin|vhd)$/i;
 
+/** Cartridge dumps: NES (iNES), C64 (CRT). */
+const CART_EXT = /\.(nes|crt)$/i;
+/** C64 tapes. */
+const TAPE_EXT = /\.(tap)$/i;
+/** Disks in a home computer's own format: C64 (D64, G64, or a bare PRG), Amiga (ADF). */
+const HOME_FLOPPY_EXT = /\.(d64|g64|prg|adf)$/i;
+
 export function classify(path: string, size: number): MediaKind | null {
   const lower = path.toLowerCase();
+  if (CART_EXT.test(lower)) return "cart";
+  if (TAPE_EXT.test(lower)) return "tape";
+  if (HOME_FLOPPY_EXT.test(lower)) return "floppy";
   // A kind directory is the strongest hint: `/floppy/…`, `/cdrom/…`, `/hdd/…`.
   if (/(^|\/)(floppy|floppies|fd)\//.test(lower)) return "floppy";
   if (/(^|\/)(cdrom|cd|iso)\//.test(lower)) return "cdrom";
@@ -60,6 +73,11 @@ function prettyName(path: string): string {
   return base.replace(/\.[^.]+$/, "").replace(/[-_]+/g, " ").toUpperCase();
 }
 
+export function formatOf(path: string): string {
+  const base = path.split(/[/#]/).filter(Boolean).pop() ?? path;
+  return /\.([^.]+)$/.exec(base)?.[1]?.toLowerCase() ?? "";
+}
+
 function item(fs: CsFileSystem, home: MediaHome, path: string, size: number, kind: MediaKind): MediaItem {
   const id = `${home}:${path}`;
   const meta = home === "shelf" ? BUNDLED[path] : undefined;
@@ -70,6 +88,7 @@ function item(fs: CsFileSystem, home: MediaHome, path: string, size: number, kin
     note: meta?.note ?? "",
     color: meta?.color ?? colorFor(id),
     size,
+    format: formatOf(path),
     home,
     fs,
     path,
@@ -98,7 +117,7 @@ async function scan(fs: CsFileSystem, home: MediaHome): Promise<MediaItem[]> {
           if (kind) found.push(item(archived, home, path, inner.size, kind));
         }
       } catch (err) {
-        console.warn(`beigebox: cannot open ${entry.path}`, err);
+        console.warn(`beigeboxes: cannot open ${entry.path}`, err);
       }
       continue;
     }
@@ -123,8 +142,8 @@ let drawerFs: Promise<WritableFileSystem | null> | undefined;
 
 export function drawer(): Promise<WritableFileSystem | null> {
   drawerFs ??= isOpfsSupported()
-    ? opfsFileSystem({ namespace: "beigebox" }).catch((err) => {
-        console.warn("beigebox: OPFS unavailable", err);
+    ? opfsFileSystem({ namespace: "beigeboxes" }).catch((err) => {
+        console.warn("beigeboxes: OPFS unavailable", err);
         return null;
       })
     : Promise.resolve(null);
@@ -165,14 +184,17 @@ export async function newDrive(name: string, megabytes: number): Promise<MediaIt
   return item(fs, "drawer", path, size, "hdd");
 }
 
-/** A blank, unformatted 1.44 MB diskette. */
-export async function newFloppy(name: string): Promise<MediaItem | null> {
+/** A blank diskette: 1.44 MB 3½", a 360 KB 5¼" for an XT, or an 880 KB Amiga ADF. */
+export async function newFloppy(name: string, size = 1_474_560, ext = "img"): Promise<MediaItem | null> {
   const fs = await drawer();
   if (!fs) return null;
-  const path = `/floppy/${name.replace(/[^\w.-]+/g, "_")}.img`;
-  await fs.write(path, new Uint8Array(1_474_560));
-  return item(fs, "drawer", path, 1_474_560, "floppy");
+  const path = `/floppy/${name.replace(/[^\w.-]+/g, "_")}.${ext}`;
+  await fs.write(path, new Uint8Array(size));
+  return item(fs, "drawer", path, size, "floppy");
 }
+
+/** The biggest image a 5¼" double-density XT drive can read (720 KB for a 3½" one on a later BIOS). */
+export const XT_FLOPPY_MAX = 737_280;
 
 export async function removeFromDrawer(media: MediaItem): Promise<void> {
   if (media.home === "shelf" || !isWritable(media.fs)) return;
@@ -195,7 +217,7 @@ export async function linkFolder(): Promise<void> {
 export async function loadLibrary(): Promise<MediaItem[]> {
   const sources: Promise<MediaItem[]>[] = [
     scan(shelf(), "shelf").catch((err) => {
-      console.warn("beigebox: shelf unavailable", err);
+      console.warn("beigeboxes: shelf unavailable", err);
       return [];
     }),
     drawer().then((fs) => (fs ? scan(fs, "drawer") : [])),

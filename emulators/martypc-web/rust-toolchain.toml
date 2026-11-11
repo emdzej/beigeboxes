@@ -1,0 +1,4 @@
+[toolchain]
+# Matches MartyPC's own rust-toolchain.toml at the pinned revision.
+channel = "1.92.0"
+targets = ["wasm32-unknown-unknown"]

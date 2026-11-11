@@ -9,10 +9,19 @@
     kind,
     screen,
     glassEl = $bindable(),
-  }: { geo: MonitorGeometry; kind: "crt" | "lcd"; screen: HTMLElement; glassEl?: HTMLElement | undefined } = $props();
+    phosphor,
+  }: {
+    geo: MonitorGeometry;
+    kind: "crt" | "lcd";
+    screen: HTMLElement;
+    glassEl?: HTMLElement | undefined;
+    /** A monochrome tube: the picture comes out in its phosphor's colour. */
+    phosphor?: "green";
+  } = $props();
 
   const aspect = $derived(geo.size[0] / geo.size[1]);
-  const signal = $derived(machine.power !== "off");
+  // No video card, no sync: the monitor sits in standby with the machine on.
+  const signal = $derived(machine.power !== "off" && machine.signal);
   const lit = $derived(machine.monitorOn && signal);
 
   /**
@@ -31,8 +40,8 @@
   }
 </script>
 
-<div class="monitor {kind}" style="aspect-ratio:{geo.size[0]}/{geo.size[1]}">
-  <img src={geo.image} alt={kind === "crt" ? "A beige CRT monitor" : "An early LCD monitor"} draggable="false" />
+<div class="monitor {kind}">
+  <img src={geo.image} alt={kind === "crt" ? "A CRT" : "An early LCD monitor"} draggable="false" />
 
   <!-- svelte-ignore a11y_click_events_have_key_events, a11y_no_static_element_interactions -->
   <div
@@ -43,7 +52,7 @@
     style={place(geo.glass)}
     onclick={glassClick}
   >
-    <div class="tube" use:adopt>
+    <div class="tube" class:green={phosphor === "green"} use:adopt>
       <!-- One scanline per guest pixel row, so a line never eats half a glyph. -->
       <div class="lines" class:near={ui.leanIn} style="--rows:{machine.screen.height}"></div>
     </div>
@@ -54,7 +63,9 @@
   </div>
 
   <button class="power" style={place(geo.power)} title="Monitor power" onclick={() => machine.toggleMonitor()}></button>
-  <i class="led" class:on={machine.monitorOn} class:standby={machine.monitorOn && !signal} style={dot(geo.led, 0.014, aspect)}></i>
+  {#if geo.led}
+    <i class="led" class:on={machine.monitorOn} class:standby={machine.monitorOn && !signal} style={dot(geo.led, 0.014, aspect)}></i>
+  {/if}
 </div>
 
 <style>
@@ -68,7 +79,9 @@
     z-index: 1;
     display: block;
     width: 100%;
-    height: 100%;
+    /* The photo sets the box's height, so everything placed over it in
+       fractions lands where it is drawn, in every browser. */
+    height: auto;
     user-select: none;
     /* The glass is a hole in the photo; clicks fall through to the screen. */
     pointer-events: none;
@@ -124,6 +137,10 @@
   }
   .lcd .glass.lit {
     background: #000;
+  }
+  /* A green-phosphor tube shows a mono picture in its own colour. */
+  .tube.green :global(canvas) {
+    filter: grayscale(1) sepia(1) hue-rotate(65deg) saturate(5) brightness(0.95) !important;
   }
   /* The guest's own screen, scaled to the glass. */
   .tube :global(canvas) {

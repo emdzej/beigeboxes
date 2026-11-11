@@ -1,42 +1,33 @@
-import type { V86 } from "v86";
-import { CsfsDiskBuffer } from "./disk-buffer";
-import { canPersist, open, type MediaItem } from "../media/library";
-import { isWritable } from "@emdzej/csfs-core";
+import type { MediaItem } from "../media/library";
+import { model, MODELS } from "../machines/catalog";
+import { cardsWith, memoryOf, partsFor } from "../machines/parts";
+import type { Build, Driver, DriverHost, Era, Led, ModemSettings, NetworkChoice, Slot } from "../machines/types";
 import { sfx } from "../sfx";
+
+export type { NetworkChoice, ModemSettings } from "../machines/types";
 
 export type PowerState = "off" | "post" | "on";
 export type CaseStyle = "tower" | "desktop";
 export type DisplayStyle = "crt" | "lcd";
 
-/** What the network cable is plugged into. */
-export type NetworkChoice =
-  | { kind: "none" }
-  /** HTTP only, through the browser's own fetch. No server needed. */
-  | { kind: "fetch"; corsProxy?: string }
-  /** Real ethernet frames through a WebSocket relay. */
-  | { kind: "relay"; url: string };
-
-export interface ModemSettings {
-  enabled: boolean;
-  /** Number dialled → WebSocket URL. `ATDT 5551234` dials `phonebook["5551234"]`. */
-  phonebook: Record<string, string>;
-}
-
 export interface Settings {
+  era: Era;
+  model: string;
   caseStyle: CaseStyle;
   display: DisplayStyle;
-  memoryMB: number;
-  network: NetworkChoice;
+  /** What is mounted in each machine, by model id. */
+  builds: Record<string, Build>;
   modem: ModemSettings;
 }
 
-const SETTINGS_KEY = "beigebox:settings";
+const SETTINGS_KEY = "beigeboxes:settings";
 
 const DEFAULTS: Settings = {
+  era: "90s",
+  model: "pc-pentium",
   caseStyle: "tower",
   display: "crt",
-  memoryMB: 64,
-  network: { kind: "none" },
+  builds: {},
   modem: {
     enabled: false,
     phonebook: { "5551234": "wss://relay.widgetry.org/" },
@@ -46,20 +37,29 @@ const DEFAULTS: Settings = {
 function loadSettings(): Settings {
   try {
     const raw = localStorage.getItem(SETTINGS_KEY);
-    return raw ? { ...DEFAULTS, ...(JSON.parse(raw) as Partial<Settings>) } : { ...DEFAULTS };
+    const s = raw ? { ...DEFAULTS, ...(JSON.parse(raw) as Partial<Settings>) } : { ...DEFAULTS };
+    if (!MODELS.some((m) => m.id === s.model)) s.model = DEFAULTS.model;
+    return withBuilds(s);
   } catch {
-    return { ...DEFAULTS };
+    return withBuilds({ ...DEFAULTS });
   }
 }
 
-type Drive = "fda" | "cdrom" | "hda" | "hdb";
+/** Every machine starts as it came from the shop. */
+function withBuilds(s: Settings): Settings {
+  const builds = { ...s.builds };
+  for (const m of MODELS) builds[m.id] ??= clone(m.defaults);
+  return { ...s, builds };
+}
 
-const base = import.meta.env.BASE_URL;
+function clone<T>(value: T): T {
+  return JSON.parse(JSON.stringify(value)) as T;
+}
 
 /**
- * The computer on the desk: what is plugged in, what is inserted, whether it
- * is on. The components only ever talk to this; v86 is an implementation
- * detail behind it.
+ * The computer on the desk: which one it is, what is mounted inside and
+ * inserted in front, whether it is on. Components only talk to this; the
+ * emulator is behind a driver.
  */
 export class Machine {
   settings = $state<Settings>(loadSettings());
@@ -67,22 +67,25 @@ export class Machine {
   monitorOn = $state(true);
 
   fda = $state<MediaItem | null>(null);
+  fdb = $state<MediaItem | null>(null);
   cdrom = $state<MediaItem | null>(null);
   hda = $state<MediaItem | null>(null);
   hdb = $state<MediaItem | null>(null);
+  cart = $state<MediaItem | null>(null);
+  tape = $state<MediaItem | null>(null);
 
   /** Lit right now. Driven by real guest I/O, not by a timer. */
-  led = $state({ hdd: false, fdd: false, cd: false });
+  led = $state({ hdd: false, fdd: false, fdb: false, cd: false, tape: false });
   /** Modem front-panel lights. */
   modemLed = $state({ oh: false, cd: false, sd: false, rd: false, tr: false });
-  /** Guest screen size in pixels, or text columns × rows ×(8|16). */
+  /** Guest screen size in pixels. */
   screen = $state({ width: 720, height: 400 });
+  /** Whether a video card is sending the monitor anything. */
+  signal = $state(true);
   /** Something to say on a sticky note when it goes wrong. */
   message = $state<string | null>(null);
 
-  private emulator: V86 | null = null;
-  private disks = new Map<Drive, CsfsDiskBuffer>();
-  private floppyBytes: Uint8Array | null = null;
+  private driver: Driver | null = null;
   private ledTimers: Record<string, ReturnType<typeof setTimeout>> = {};
   private screenEl: HTMLElement | null = null;
 
@@ -94,12 +97,49 @@ export class Machine {
     });
   }
 
+  get model() {
+    return model(this.settings.model);
+  }
+
+  /** What is mounted in the machine on the desk; starts as it came from the shop. */
+  get build(): Build {
+    return this.settings.builds[this.settings.model]!;
+  }
+
+  get memoryKb(): number {
+    return memoryOf(this.model.board, this.build).kb;
+  }
+
+  get network(): NetworkChoice {
+    return cardsWith(this.build, "network")[0]?.net ?? { kind: "none" };
+  }
+
   attachScreen(el: HTMLElement): void {
     this.screenEl = el;
   }
 
   get running(): boolean {
     return this.power !== "off";
+  }
+
+  /** Swap the machine on the desk. Only with it switched off. */
+  choose(id: string): boolean {
+    if (this.power !== "off") {
+      this.message = "Switch it off before you carry it away.";
+      return false;
+    }
+    if (id === this.settings.model) return true;
+    this.fda = this.fdb = this.cdrom = this.hda = this.hdb = this.cart = this.tape = null;
+    this.settings.model = id;
+    return true;
+  }
+
+  /** The hard disks wired up in the build, once the library has loaded. */
+  restoreDrives(library: MediaItem[]): void {
+    for (const slot of ["hda", "hdb"] as const) {
+      const id = this.build.drives[slot];
+      this[slot] = id ? (library.find((m) => m.id === id) ?? null) : null;
+    }
   }
 
   /** What the guest shows right now, as a PNG; null when the screen is dark. */
@@ -119,76 +159,68 @@ export class Machine {
 
   async powerOn(): Promise<void> {
     if (this.power !== "off" || !this.screenEl) return;
+    const m = this.model;
+    if (!m.driver) {
+      this.message = `The ${m.name} isn't wired up yet — its emulator is still being ported.`;
+      return;
+    }
     this.power = "post";
     this.message = null;
-    sfx.fanStart();
+    // Only the computers have a fan; a console just clicks on.
+    if (m.board) sfx.fanStart();
     if (this.hda || this.hdb) sfx.hddSpinUp();
 
+    const memory = memoryOf(m.board, this.build);
+    if (m.board && memory.kb === 0) {
+      // No memory, no POST: the BIOS beeps and the screen stays dark.
+      sfx.beeps([400, 400, 400]);
+      this.message = memory.halfBanks
+        ? "Beep, beep, beep. The SIMMs go in matching pairs on a Pentium — fill a whole bank."
+        : "Beep, beep, beep. There's no RAM in it. Open the case and fit some.";
+      sfx.fanStop();
+      this.settle();
+      return;
+    }
+    if (memory.halfBanks) this.message = "A half-filled memory bank is ignored: SIMMs go in matching pairs.";
+    // Only a board that takes video cards needs one; an Amiga's video is on the board.
+    const needsCard = !!m.board && partsFor(m.board).some((p) => p.role === "video");
+    this.signal = !needsCard || cardsWith(this.build, "video").length > 0;
+    if (!this.signal) sfx.beeps([900, 300, 300]);
+
     try {
-      const opts: Record<string, unknown> = {
-        wasm_path: `${base}v86/v86.wasm`,
-        bios: { url: `${base}v86/seabios.bin` },
-        vga_bios: { url: `${base}v86/vgabios.bin` },
-        screen: { container: this.screenEl, use_graphical_text: true },
-        memory_size: this.settings.memoryMB * 1024 * 1024,
-        vga_memory_size: 8 * 1024 * 1024,
-        autostart: true,
-        boot_order: this.bootOrder(),
-      };
-
-      if (this.fda) opts.fda = { buffer: await this.readFloppy(this.fda) };
-      for (const drive of ["cdrom", "hda", "hdb"] as const) {
-        const media = this[drive];
-        if (media) opts[drive] = await this.diskFor(drive, media);
-      }
-
-      const net = this.settings.network;
-      if (net.kind === "fetch") {
-        opts.net_device = { type: "ne2k", relay_url: "fetch", ...(net.corsProxy ? { cors_proxy: net.corsProxy } : {}) };
-      } else if (net.kind === "relay") {
-        opts.net_device = { type: "ne2k", relay_url: net.url };
-      }
-      if (this.settings.modem.enabled) {
-        // COM2, so a serial mouse or a terminal can still have COM1.
-        opts.modem = { uart: 1, phonebook: { ...this.settings.modem.phonebook } };
-      }
-
-      // Loaded on the first press of POWER: a 360 kB emulator is not needed
-      // to look at a desk.
-      const { V86 } = await import("v86");
-      const emulator = new V86(opts as never);
-      this.emulator = emulator;
-      this.wire(emulator);
-      emulator.add_listener("emulator-started", () => {
-        this.power = "on";
-        this.hookFloppy();
-      });
+      const start = await m.driver();
+      this.driver = await start(
+        {
+          build: $state.snapshot(this.build) as Build,
+          memoryKb: memory.kb,
+          media: this.inserted(),
+          modem: $state.snapshot(this.settings.modem) as ModemSettings,
+        },
+        this.host(),
+      );
     } catch (err) {
       console.error(err);
       this.message = `It won't POST: ${(err as Error).message}`;
-      this.power = "off";
-      this.teardown();
+      sfx.fanStop();
+      this.settle();
     }
   }
 
   async powerOff(): Promise<void> {
     if (this.power === "off") return;
     sfx.fanStop();
-    const emulator = this.emulator;
+    const driver = this.driver;
     this.power = "off";
-    this.led = { hdd: false, fdd: false, cd: false };
-    if (emulator) {
-      await emulator.stop();
-      await this.persistAll();
-      emulator.destroy();
-    }
-    this.teardown();
+    this.led = { hdd: false, fdd: false, fdb: false, cd: false, tape: false };
+    // Stopped before the screen is wiped, or it would draw one more frame.
+    if (driver) await driver.stop();
+    this.settle();
   }
 
   reset(): void {
     sfx.click();
-    if (this.power === "off" || !this.emulator) return;
-    this.emulator.restart();
+    if (this.power === "off") return;
+    this.driver?.reset();
   }
 
   /**
@@ -196,16 +228,15 @@ export class Machine {
    * open, or typing a label would also type into DOS.
    */
   setInput(enabled: boolean): void {
-    this.emulator?.keyboard_set_enabled(enabled);
-    this.emulator?.mouse_set_enabled(enabled);
+    this.driver?.setInput(enabled);
   }
 
   lockMouse(): void {
-    this.emulator?.lock_mouse();
+    this.driver?.lockMouse();
   }
 
   sendCtrlAltDel(): void {
-    this.emulator?.keyboard_send_scancodes([0x1d, 0x38, 0x53, 0xd3, 0xb8, 0x9d]);
+    this.driver?.sendCtrlAltDel();
   }
 
   toggleMonitor(): void {
@@ -216,47 +247,63 @@ export class Machine {
 
   // --- media ---------------------------------------------------------------
 
-  async insertFloppy(media: MediaItem): Promise<void> {
-    if (this.fda) await this.ejectFloppy();
+  async insertFloppy(media: MediaItem, drive: "fda" | "fdb" = "fda"): Promise<void> {
+    if (this[drive]) await this.ejectFloppy(drive);
     sfx.floppyInsert();
-    this.fda = media;
-    if (this.emulator && this.power !== "off") {
-      const buffer = await this.readFloppy(media);
-      await this.emulator.set_fda({ buffer });
-      this.hookFloppy();
-    }
+    this[drive] = media;
+    await this.driver?.insert(drive, media);
   }
 
-  async ejectFloppy(): Promise<void> {
-    if (!this.fda) return;
+  async ejectFloppy(drive: "fda" | "fdb" = "fda"): Promise<void> {
+    if (!this[drive]) return;
     sfx.floppyEject();
-    const media = this.fda;
-    if (this.emulator && this.power !== "off") {
-      const bytes = diskFda(this.emulator);
-      this.emulator.eject_fda();
-      if (bytes) await this.saveFloppy(media, bytes);
-    }
-    this.fda = null;
-    this.floppyBytes = null;
+    await this.driver?.eject(drive);
+    this[drive] = null;
   }
 
   async insertCd(media: MediaItem): Promise<void> {
     sfx.trayClose();
     this.cdrom = media;
-    if (this.emulator && this.power !== "off") {
-      const disk = await this.diskFor("cdrom", media);
-      // `set_cdrom` only takes URLs and buffers; a custom buffer goes straight
-      // to the drive, which is what `set_cdrom` does after loading anyway.
-      const cpu = (this.emulator as unknown as { v86: { cpu: { devices: { cdrom?: { set_cdrom(b: unknown): void } } } } }).v86.cpu;
-      cpu.devices.cdrom?.set_cdrom(disk);
-    }
+    await this.driver?.insert("cdrom", media);
   }
 
   ejectCd(): void {
     if (!this.cdrom) return;
-    if (this.emulator && this.power !== "off") this.emulator.eject_cdrom();
+    void this.driver?.eject("cdrom");
     this.cdrom = null;
-    this.disks.delete("cdrom");
+  }
+
+  /** A cartridge only goes in or out with the power off: the edge connector is live. */
+  setCart(media: MediaItem | null): boolean {
+    if (this.power !== "off") {
+      this.message = "Switch it off first — you don't pull a cartridge out of a running console.";
+      return false;
+    }
+    sfx.floppyInsert();
+    this.cart = media;
+    return true;
+  }
+
+  /** A cassette in the Datasette. Tapes go in and out whenever; the motor stops. */
+  async insertTape(media: MediaItem): Promise<void> {
+    if (this.tape) await this.ejectTape();
+    sfx.floppyInsert();
+    this.tape = media;
+    await this.driver?.insert("tape", media);
+  }
+
+  async ejectTape(): Promise<void> {
+    if (!this.tape) return;
+    sfx.floppyEject();
+    await this.driver?.eject("tape");
+    this.tape = null;
+    this.led.tape = false;
+  }
+
+  /** The Datasette's piano keys. */
+  tapeButton(button: "play" | "stop" | "rewind"): void {
+    sfx.click();
+    this.driver?.tape?.(button);
   }
 
   /** Hard disks only go in and out with the power off, as with real IDE. */
@@ -265,133 +312,67 @@ export class Machine {
       this.message = "Turn it off first! You don't hot-swap IDE.";
       return false;
     }
-    if (media && (this.hda?.id === media.id || this.hdb?.id === media.id)) {
+    const drives = this.build.drives;
+    if (media) {
       // Moving a drive between master and slave.
-      if (this.hda?.id === media.id) this.hda = null;
-      if (this.hdb?.id === media.id) this.hdb = null;
+      for (const s of ["hda", "hdb"] as const) {
+        if (this[s]?.id === media.id) {
+          this[s] = null;
+          delete drives[s];
+        }
+      }
     }
     this[slot] = media;
+    if (media) drives[slot] = media.id;
+    else delete drives[slot];
     return true;
   }
 
   // --- internals -----------------------------------------------------------
 
-  private bootOrder(): number {
-    // A:, then CD, then C: — but only for drives with something in them, so a
-    // machine with just a hard disk does not sit asking a floppy drive first.
-    if (this.fda) return 0x231; // floppy, CD, hard disk
-    if (this.cdrom) return 0x123; // CD, hard disk, floppy
-    return 0x132; // hard disk, CD, floppy
-  }
-
-  private async readFloppy(media: MediaItem): Promise<ArrayBuffer> {
-    const bytes = await (await open(media)).bytes();
-    this.floppyBytes = bytes;
-    // A fresh copy for v86, which writes into the buffer it is given.
-    return bytes.slice().buffer;
-  }
-
-  private async diskFor(drive: Drive, media: MediaItem): Promise<CsfsDiskBuffer> {
-    const disk = new CsfsDiskBuffer(await open(media), {
-      // A CD is read in long runs; a hard disk is seeky.
-      readAhead: drive === "cdrom" ? 256 * 1024 : 64 * 1024,
-    });
-    disk.onActivity = () => {
-      this.blink(drive === "cdrom" ? "cd" : "hdd");
-      if (drive !== "cdrom") sfx.hddSeek();
-    };
-    this.disks.set(drive, disk);
-    return disk;
-  }
-
-  /** The floppy LED and its grinding: v86 has no event for floppy I/O. */
-  private hookFloppy(): void {
-    const cpu = (this.emulator as unknown as { v86?: { cpu: { devices: { fdc?: { drives: { buffer?: { get: Function; set: Function } }[] } } } } })?.v86?.cpu;
-    const buffer = cpu?.devices.fdc?.drives[0]?.buffer;
-    if (!buffer || (buffer as { __bb?: boolean }).__bb) return;
-    (buffer as { __bb?: boolean }).__bb = true;
-    for (const name of ["get", "set"] as const) {
-      const original = buffer[name];
-      buffer[name] = (...args: unknown[]) => {
-        this.blink("fdd", 400);
-        sfx.floppySeek();
-        return original.apply(buffer, args);
-      };
+  private inserted(): Partial<Record<Slot, MediaItem>> {
+    const media: Partial<Record<Slot, MediaItem>> = {};
+    for (const slot of this.model.slots) {
+      const m = this[slot];
+      if (m) media[slot] = m;
     }
+    return media;
   }
 
-  private blink(which: "hdd" | "fdd" | "cd", ms = 90): void {
+  private host(): DriverHost {
+    return {
+      screen: this.screenEl!,
+      blink: (led, ms) => this.blink(led, ms),
+      light: (led, on) => {
+        clearTimeout(this.ledTimers[led]);
+        this.led[led] = on;
+      },
+      setScreen: (width, height) => (this.screen = { width, height }),
+      started: () => (this.power = "on"),
+      modem: {
+        set: (led, on) => (this.modemLed[led] = on),
+        blink: (led) => {
+          this.modemLed[led] = true;
+          clearTimeout(this.ledTimers[led]);
+          this.ledTimers[led] = setTimeout(() => (this.modemLed[led] = false), 60);
+        },
+      },
+      say: (text) => (this.message = text),
+    };
+  }
+
+  private blink(which: Led, ms = 90): void {
     if (!this.led[which]) this.led[which] = true;
     clearTimeout(this.ledTimers[which]);
     this.ledTimers[which] = setTimeout(() => (this.led[which] = false), ms);
   }
 
-  private modemBlink(which: "sd" | "rd"): void {
-    this.modemLed[which] = true;
-    clearTimeout(this.ledTimers[which]);
-    this.ledTimers[which] = setTimeout(() => (this.modemLed[which] = false), 60);
-  }
-
-  private wire(emulator: V86): void {
-    emulator.add_listener("screen-set-size", ([w, h, bpp]: [number, number, number]) => {
-      // Text mode reports columns × rows with bpp 0.
-      this.screen = bpp ? { width: w, height: h } : { width: w * 9, height: h * 16 };
-    });
-    if (this.settings.modem.enabled) {
-      // Watch the AT conversation for what the front panel would show: the
-      // guest dialling takes the line off-hook, the modem's CONNECT raises
-      // carrier detect, NO CARRIER drops both.
-      let sent = "";
-      let heard = "";
-      emulator.add_listener("serial1-output-byte", (byte: number) => {
-        this.modemLed.tr = true;
-        this.modemBlink("sd");
-        sent = (sent + String.fromCharCode(byte)).slice(-16).toUpperCase();
-        if (/ATD[TP]?\s*\S/.test(sent) && sent.endsWith("\r")) this.modemLed.oh = true;
-        if (/ATH0?\r$/.test(sent)) this.modemLed.oh = this.modemLed.cd = false;
-      });
-      emulator.add_listener("serial1-input", (byte: number) => {
-        this.modemBlink("rd");
-        heard = (heard + String.fromCharCode(byte)).slice(-16).toUpperCase();
-        if (heard.endsWith("CONNECT")) {
-          this.modemLed.cd = true;
-          sfx.modemHandshake();
-        }
-        if (heard.endsWith("NO CARRIER") || heard.endsWith("BUSY")) this.modemLed.oh = this.modemLed.cd = false;
-      });
-    }
-  }
-
-  private async saveFloppy(media: MediaItem, bytes: Uint8Array): Promise<void> {
-    if (!canPersist(media) || !isWritable(media.fs)) return;
-    if (this.floppyBytes && equal(this.floppyBytes, bytes)) return;
-    await media.fs.write(media.path, bytes.slice());
-  }
-
-  /** Write every changed disk back to where it came from, if it can go back. */
-  private async persistAll(): Promise<void> {
-    const saves: Promise<void>[] = [];
-    if (this.fda && this.emulator) {
-      const bytes = diskFda(this.emulator);
-      if (bytes) saves.push(this.saveFloppy(this.fda, bytes));
-    }
-    for (const drive of ["hda", "hdb"] as const) {
-      const media = this[drive];
-      const disk = this.disks.get(drive);
-      if (!media || !disk?.dirty || !canPersist(media) || !isWritable(media.fs)) continue;
-      saves.push(media.fs.write(media.path, disk.stream()));
-    }
-    const results = await Promise.allSettled(saves);
-    const failed = results.filter((r) => r.status === "rejected");
-    if (failed.length) {
-      console.error(failed);
-      this.message = "Some disk changes could not be saved.";
-    }
-  }
-
-  private teardown(): void {
-    this.emulator = null;
-    this.disks.clear();
+  /** Back to dark: fans down, lights out, last frame wiped. */
+  private settle(): void {
+    this.power = "off";
+    this.driver = null;
+    this.signal = true;
+    this.led = { hdd: false, fdd: false, fdb: false, cd: false, tape: false };
     this.modemLed = { oh: false, cd: false, sd: false, rd: false, tr: false };
     if (this.screenEl) {
       // v86 leaves its last frame behind; a dead monitor shows nothing.
@@ -401,17 +382,6 @@ export class Machine {
       if (text) text.textContent = "";
     }
   }
-}
-
-/** In v86 since 2024, missing from its type declarations. */
-function diskFda(emulator: V86): Uint8Array | null {
-  return (emulator as unknown as { get_disk_fda(): Uint8Array | null }).get_disk_fda();
-}
-
-function equal(a: Uint8Array, b: Uint8Array): boolean {
-  if (a.length !== b.length) return false;
-  for (let i = 0; i < a.length; i++) if (a[i] !== b[i]) return false;
-  return true;
 }
 
 export const machine = new Machine();

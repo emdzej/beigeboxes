@@ -26,3 +26,12 @@ angle (~12°) instead of straight-on. Its desk-top lines (wall 41cqw, front lip
 The monitors' glass is cut out of their photos by `art/punch.py` (from the
 un-punched copies in `art/orig/`), so the emulator's screen sits behind the
 bezel and the real corners frame it.
+
+The 1980s room (`room80s.webp`) is an edit of the 1990s one with the same
+camera, so the desk lines, shelf, board and drawer stay where the layout
+expects them.
+
+The open case (`interior.webp`) is shot from directly above, perpendicular to
+the board, so the sockets, slots and bays are rectangles (`src/lib/machines/boards.ts`).
+The parts in `parts/` are front-on cut-outs; a fitted card is the same photo
+tilted back with CSS 3D so it stands in its slot.

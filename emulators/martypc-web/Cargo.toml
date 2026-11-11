@@ -1,0 +1,34 @@
+[package]
+name = "martypc_web"
+description = "A wasm-bindgen wrapper around MartyPC's emulator core: an IBM PC/XT for a web page."
+version = "0.1.0"
+edition = "2021"
+license = "GPL-3.0-or-later"
+publish = false
+
+# Stand-alone: not part of any parent workspace.
+[workspace]
+
+[lib]
+crate-type = ["cdylib", "rlib"]
+
+[dependencies]
+# MartyPC, pinned to one revision so the build is reproducible.
+marty_core = { git = "https://github.com/dbalsom/martypc", rev = "05c0d088e84ad6bbfac9b3f0d051e7eadefd9f44", default-features = false, features = ["sound"] }
+marty_common = { git = "https://github.com/dbalsom/martypc", rev = "05c0d088e84ad6bbfac9b3f0d051e7eadefd9f44" }
+# Same source and branch as MartyPC's workspace uses, so Cargo unifies it with marty_core's copy.
+# Cargo.lock pins the commit (the same one MartyPC's own Cargo.lock uses).
+fluxfox = { git = "https://github.com/dbalsom/fluxfox.git", branch = "finish_fat", default-features = false, features = ["core", "wasm", "zip", "gzip", "tar", "mfi", "fat", "flux", "ibm_pc"] }
+
+wasm-bindgen = "=0.2.108"
+js-sys = "0.3"
+log = "0.4"
+crossbeam-channel = "0.5"
+console_error_panic_hook = "0.1"
+
+[profile.release]
+opt-level = 3
+lto = true
+codegen-units = 1
+panic = "abort"
+debug = false

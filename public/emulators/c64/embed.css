@@ -1,0 +1,7 @@
+/* beigebox: chrome-less embed. Only the emulator canvas, black around it. */
+html, body { background: #000 !important; margin: 0; padding: 0; overflow: hidden !important; }
+body > *:not(#div_canvas):not(script) { display: none !important; }
+#div_canvas { position: fixed !important; inset: 0; width: 100vw !important; height: 100vh !important; background: #000 !important; }
+#canvas { background: #000 !important; outline: none; }
+.modal-backdrop, .modal, .toast, .tooltip, .popover { display: none !important; }
+body.hoffmann-off #canvas { visibility: hidden; }

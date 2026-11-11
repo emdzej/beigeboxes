@@ -3,11 +3,16 @@
   import { plasticFilter, humanSize } from "./plastic";
 
   /** `stored`: shutter down, label edge up — how they stood in a disk box. */
-  let { media, stored = false }: { media: MediaItem; stored?: boolean } = $props();
+  /** `five`: a 5¼" disk in its paper sleeve; the label is written on the sleeve. */
+  let { media, stored = false, five = false }: { media: MediaItem; stored?: boolean; five?: boolean } = $props();
 </script>
 
-<div class="floppy" class:stored>
-  <img src="art/floppy.webp" alt="" draggable="false" style="filter:{plasticFilter(media.color)}" />
+<div class="floppy" class:stored class:five style="--c:{media.color}">
+  {#if five}
+    <img src="art/xt/floppy525.webp" alt="" draggable="false" />
+  {:else}
+    <img src="art/floppy.webp" alt="" draggable="false" style="filter:{plasticFilter(media.color)}" />
+  {/if}
   <div class="label">
     <span class="title">{media.label}</span>
     {#if media.note}<span class="note">{media.note}</span>{/if}
@@ -47,6 +52,33 @@
   }
   .stored img {
     rotate: 180deg;
+  }
+  .five {
+    aspect-ratio: 600 / 452;
+  }
+  .five img,
+  .five.stored img {
+    rotate: none;
+  }
+  .five .label,
+  .five.stored .label {
+    left: 53%;
+    right: 4%;
+    top: 8%;
+    bottom: 10%;
+    padding: 2cqw 3cqw;
+    justify-content: flex-start;
+    border-top: 2cqw solid var(--c, #1f3f8f);
+    transform: rotate(0.6deg);
+  }
+  .five .title {
+    font-size: 9cqw;
+  }
+  .five .note {
+    font-size: 7cqw;
+  }
+  .five .meta {
+    font-size: 6cqw;
   }
   .stored .label {
     top: 6%;

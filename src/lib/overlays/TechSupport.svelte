@@ -130,7 +130,7 @@
     const data = await support.client.myData();
     const a = document.createElement("a");
     a.href = URL.createObjectURL(new Blob([JSON.stringify(data, null, 2)], { type: "application/json" }));
-    a.download = "beigebox-support.json";
+    a.download = "beigeboxes-support.json";
     a.click();
     URL.revokeObjectURL(a.href);
   }

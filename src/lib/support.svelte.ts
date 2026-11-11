@@ -10,11 +10,11 @@ import { machine } from "./emulator/machine.svelte";
  */
 const ALIAS_URL = "https://help.getalias.support";
 const KEY = "alias_beigebox_35xvdfio3fvf6aejyzb3i2yxzsmkzcir4p364pygnt3khglm";
-const SEEN_KEY = "beigebox:support-seen";
+const SEEN_KEY = "beigeboxes:support-seen";
 
 function describeMachine(): string {
   const s = machine.settings;
-  return `${s.caseStyle}, ${s.display.toUpperCase()}, ${s.memoryMB} MB`;
+  return `${machine.model.name}, ${s.caseStyle}, ${s.display.toUpperCase()}, ${machine.memoryKb >= 1024 ? `${machine.memoryKb / 1024} MB` : `${machine.memoryKb} KB`}`;
 }
 
 function describeDisks(): string {
@@ -31,13 +31,15 @@ class Support {
   readonly client = new AliasClient({
     url: ALIAS_URL,
     key: KEY,
-    store: new LocalStorageIdentityStore("beigebox:support-identity"),
+    store: new LocalStorageIdentityStore("beigeboxes:support-identity"),
     appVersion: __APP_VERSION__,
     context: () => ({ machine: describeMachine(), disks: describeDisks(), power: machine.power }),
     telemetry: () => ({
-      memoryMB: machine.settings.memoryMB,
-      network: machine.settings.network.kind,
-      modem: Object.keys(machine.settings.modem.phonebook).length > 0,
+      model: machine.model.id,
+      memoryKb: machine.memoryKb,
+      cards: machine.build.cards.filter(Boolean).map((c) => c!.part).join(", "),
+      network: machine.network.kind,
+      modem: machine.settings.modem.enabled,
       screen: `${machine.screen.width}x${machine.screen.height}`,
       browser: navigator.userAgent,
     }),
@@ -52,10 +54,10 @@ class Support {
   private stopWatch: (() => void) | null = null;
 
   /** Only a browser that has already reported has an identity; don't make one just to look. */
-  known = $state(localStorage.getItem("beigebox:support-identity") !== null);
+  known = $state(localStorage.getItem("beigeboxes:support-identity") !== null);
 
   start(): void {
-    this.known = localStorage.getItem("beigebox:support-identity") !== null;
+    this.known = localStorage.getItem("beigeboxes:support-identity") !== null;
     if (!this.known || this.stopWatch) return;
     void this.load();
     this.stopWatch = this.client.watch(() => void this.load());

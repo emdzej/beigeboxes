@@ -1,15 +1,22 @@
 <script lang="ts">
   import { onMount } from "svelte";
-  import Case from "./lib/hardware/Case.svelte";
-  import Monitor from "./lib/hardware/Monitor.svelte";
-  import Modem from "./lib/hardware/Modem.svelte";
+  import type { Desk as DeskComponent } from "./lib/desks/desk";
+  import Pc96 from "./lib/desks/Pc96.svelte";
+  import Xt from "./lib/desks/Xt.svelte";
+  import Nes from "./lib/desks/Nes.svelte";
+  import C64 from "./lib/desks/C64.svelte";
+  import Amiga from "./lib/desks/Amiga.svelte";
   import FloppyBox from "./lib/overlays/FloppyBox.svelte";
   import CdWallet from "./lib/overlays/CdWallet.svelte";
   import Drawer from "./lib/overlays/Drawer.svelte";
-  import Setup from "./lib/overlays/Setup.svelte";
+  import Phonebook from "./lib/overlays/Phonebook.svelte";
+  import Inside from "./lib/overlays/Inside.svelte";
+  import Catalogue from "./lib/overlays/Catalogue.svelte";
+  import CartBox from "./lib/overlays/CartBox.svelte";
+  import TapeBox from "./lib/overlays/TapeBox.svelte";
+  import { sfx } from "./lib/sfx";
   import TechSupport from "./lib/overlays/TechSupport.svelte";
   import { support } from "./lib/support.svelte";
-  import { TOWER, DESKTOP, CRT, LCD } from "./lib/hardware/geometry";
   import { machine } from "./lib/emulator/machine.svelte";
   import { ui } from "./lib/ui.svelte";
   import { classify, importToDrawer } from "./lib/media/library";
@@ -23,8 +30,32 @@
   screen.innerHTML = `<div style="white-space:pre;font:14px monospace;line-height:14px"></div><canvas></canvas>`;
   machine.attachScreen(screen);
 
-  const tower = $derived(machine.settings.caseStyle === "tower");
-  const crt = $derived(machine.settings.display === "crt");
+  /** What stands on the desk depends on the machine: case, monitor, keyboard, its disks. */
+  const DESKS: Record<string, DeskComponent> = {
+    "pc-pentium": Pc96,
+    "pc-xt": Xt,
+    nes: Nes,
+    c64: C64,
+    "amiga-500": Amiga,
+  };
+  /** The one line of instructions under the desk, for whatever is on it. */
+  const INTRO: Record<string, string> = {
+    "pc-pentium":
+      "Press the big POWER button. Disks are in the box, CDs in the wallet, hard drives in the drawer.<br />The screwdriver opens the case, the catalogue on the shelf has other machines. Drop your own .img / .iso anywhere.",
+    "pc-xt":
+      "Flip the big red switch on the side. 5¼-inch disks are in the box; turn a drive's lever to let one out.<br />The screwdriver opens the case, the catalogue on the shelf has other machines.",
+    c64: "The power switch is on its right side: there's a close-up beside it. Disks go in the 1541; cassettes in the Datasette, then LOAD\"\",1 and PLAY.<br />Cartridges go in with the power off. A gamepad is the joystick in port 2.",
+    "amiga-500": "The power switch is on the brick. The drive is on the right-hand side: put the AROS disk in it.<br />The screwdriver turns it over: the trapdoor takes a memory card, and AROS gets further with the 1.5 MB one.",
+    nes: "Lift the flap and put a cartridge in, then press POWER. Arrows, Z and X, Enter for Start; a gamepad works too.<br />The catalogue on the shelf has other machines. Drop your own .nes anywhere.",
+  };
+  const Desk = $derived(DESKS[machine.model.id] ?? Pc96);
+  const room = $derived(machine.settings.era === "80s" ? "art/room80s.webp" : "art/room.webp");
+  let muted = $state(sfx.muted);
+
+  function flipYear() {
+    machine.settings.era = machine.settings.era === "80s" ? "90s" : "80s";
+  }
+
 
   let stage: HTMLElement;
   let glassEl = $state<HTMLElement>();
@@ -79,7 +110,7 @@
     e.preventDefault();
     dragging = false;
     const files = [...(e.dataTransfer?.files ?? [])];
-    const where = { floppy: "floppy box", cdrom: "CD wallet", hdd: "drawer" } as const;
+    const where = { floppy: "floppy box", cdrom: "CD wallet", hdd: "drawer", cart: "cartridge stack", tape: "shoebox of cassettes" } as const;
     for (const file of files) {
       const kind = classify(file.name, file.size) ?? "hdd";
       const media = await importToDrawer(file, kind);
@@ -112,12 +143,18 @@
 >
   <div class="stage" bind:this={stage} class:leaning={ui.leanIn}>
     <div class="scene" style:transform={lean || null}>
-      <img class="backdrop" src="art/room.webp" alt="A 1990s bedroom desk at night" draggable="false" />
+      <img class="backdrop" src={room} alt={`A ${machine.settings.era === "80s" ? "1980s" : "1990s"} bedroom desk at night`} draggable="false" />
       <div class="lamp-glow"></div>
 
-      <!-- the setup card, pinned to the cork board -->
-      <button class="pinned card" onclick={() => ui.open("setup")} title="Setup notes">
-        <b>MY PC</b><br />setup &amp; phone #s
+      <!-- a pocket calendar pinned to the board: which decade the room is in -->
+      <button class="pinned calendar" onclick={flipYear} title="Flip to the {machine.settings.era === '80s' ? '90s' : '80s'}">
+        <b>{machine.settings.era === "80s" ? "1986" : "1996"}</b>
+        <span class="grid">{#each Array(28) as _, i}<i class:today={i === 10}>{i + 1}</i>{/each}</span>
+      </button>
+
+      <!-- mail-order catalogues on the shelf -->
+      <button class="item catalogue" onclick={() => ui.open("catalogue")} title="The computer catalogue">
+        <img src="art/catalogue.webp" alt="A stack of computer catalogues" draggable="false" />
       </button>
 
       <!-- the tech support flyer, with tear-off tabs; one's already gone -->
@@ -132,40 +169,14 @@
         {#if support.unread}<em class="badge">{support.unread} new!</em>{/if}
       </button>
 
-      <!-- floppy box, left of the monitor -->
-      <button class="item floppybox" onclick={() => ui.open("floppies")} title="Floppy disks">
-        <img src="art/floppybox.webp" alt="A box of floppy disks" draggable="false" />
-      </button>
-
-      <!-- the modem sits on the magazines -->
-      <div class="item modem"><Modem /></div>
-
-      <!-- CD wallet, front right -->
-      <button class="item cdwallet" onclick={() => ui.open("cds")} title="CDs">
-        <img src="art/cdwallet.webp" alt="A CD wallet" draggable="false" />
-      </button>
-
-      {#if tower}
-        <div class="item monitor tower-mode" class:lcd={!crt}>
-          {#if crt}<Monitor geo={CRT} kind="crt" {screen} bind:glassEl />{:else}<Monitor geo={LCD} kind="lcd" {screen} bind:glassEl />{/if}
-        </div>
-        <div class="item tower"><Case geo={TOWER} /></div>
-      {:else}
-        <div class="item desktop"><Case geo={DESKTOP} /></div>
-        <div class="item monitor desktop-mode" class:lcd={!crt}>
-          {#if crt}<Monitor geo={CRT} kind="crt" {screen} bind:glassEl />{:else}<Monitor geo={LCD} kind="lcd" {screen} bind:glassEl />{/if}
-        </div>
-      {/if}
-
-      <img class="item keyboard" src="art/keyboard.webp" alt="" draggable="false" />
-      <img class="item mouse" src="art/mouse.webp" alt="" draggable="false" />
+      <Desk {screen} bind:glassEl />
 
       <!-- The desk's own drawer: its front is lifted out of the photo so it
            can slide out, showing the dark gap behind it. -->
       <div class="drawer-gap"></div>
       <button
         class="drawer-front"
-        style="background-image:url(art/room.webp)"
+        style="background-image:url({room})"
         onclick={() => ui.open("drawer")}
         title="The drawer with the hard disks"
       >
@@ -181,8 +192,8 @@
     </div>
   {:else if machine.power === "off" && !ui.overlay}
     <div class="intro">
-      <h1>beigebox</h1>
-      <p>Press the big POWER button. Disks are in the box, CDs in the wallet, hard drives in the drawer.<br />Drop your own .img / .iso anywhere.</p>
+      <h1>beigeboxes</h1>
+      <p>{@html INTRO[machine.model.id] ?? INTRO["pc-pentium"]}</p>
     </div>
   {/if}
 
@@ -190,12 +201,21 @@
     <button class="sticky" onclick={() => (machine.message = null)}>{machine.message}</button>
   {/if}
   {#if ui.toast}<div class="toast">{ui.toast}</div>{/if}
+  <button
+    class="mute"
+    title={muted ? "Sound off — the clicks and whirrs are muted" : "Sound on"}
+    onclick={() => { muted = !muted; sfx.setMuted(muted); }}
+  >{muted ? "🔇" : "🔊"}</button>
   {#if dragging}<div class="dropzone">Drop it on the desk — I'll file it away</div>{/if}
 
   {#if ui.overlay === "floppies"}<FloppyBox />{/if}
   {#if ui.overlay === "cds"}<CdWallet />{/if}
   {#if ui.overlay === "drawer"}<Drawer />{/if}
-  {#if ui.overlay === "setup"}<Setup />{/if}
+  {#if ui.overlay === "phonebook"}<Phonebook />{/if}
+  {#if ui.overlay === "inside"}<Inside />{/if}
+  {#if ui.overlay === "catalogue"}<Catalogue />{/if}
+  {#if ui.overlay === "carts"}<CartBox />{/if}
+  {#if ui.overlay === "tapes"}<TapeBox />{/if}
   {#if ui.overlay === "support"}<TechSupport />{/if}
 </main>
 
@@ -240,6 +260,11 @@
   .leaning .lamp-glow {
     opacity: 0;
   }
+  /* An emulator in an iframe (C64, Amiga) would swallow the click that leans
+     in; from across the room the glass takes it, close up the machine does. */
+  .stage:not(.leaning) :global(.scene iframe) {
+    pointer-events: none;
+  }
   .item {
     position: absolute;
     display: block;
@@ -260,76 +285,13 @@
     width: 100%;
     user-select: none;
   }
-  img.item {
-    user-select: none;
-  }
 
-  /* Layout in container units: 100cqw is the stage's width, 100cqh its
-     height. The desk is seen almost edge-on: its top runs from the wall at
-     41cqw down to the front lip at 43.2cqw, so things stand on it by their
-     bottom edge — further back, higher up. */
-  .tower-mode {
-    left: 29%;
-    width: 25cqw;
-    bottom: calc(100cqh - 41.9cqw);
-  }
-  .tower-mode.lcd {
-    left: 29.5%;
-    width: 24cqw;
-  }
-  .tower {
-    left: 57%;
-    width: 13.6cqw;
-    bottom: calc(100cqh - 42.2cqw);
-  }
-  .desktop {
-    left: 25%;
-    width: 36cqw;
-    bottom: calc(100cqh - 41.9cqw);
-  }
-  .desktop-mode {
-    /* On the case: its lid is the case's top edge, 13.7cqw up, less the
-       lip the monitor's foot sinks behind. */
-    left: 31%;
-    width: 24cqw;
-    bottom: calc(100cqh - 41.9cqw + 12cqw);
-  }
-  .desktop-mode.lcd {
-    left: 31.5%;
-    width: 23cqw;
-  }
-  .keyboard {
-    /* At the very front, its lip over the desk's edge. */
-    left: 26.5%;
-    width: 30cqw;
-    bottom: calc(100cqh - 43.7cqw);
-    filter: drop-shadow(0 0.4cqw 0.5cqw rgb(0 0 0 / 0.55));
-    pointer-events: none;
-  }
-  .mouse {
-    /* On its pad, right of the keyboard; the cable runs off to the tower. */
-    left: 56.8%;
-    width: 17cqw;
-    bottom: calc(100cqh - 43.6cqw);
-    filter: drop-shadow(0 0.3cqw 0.4cqw rgb(0 0 0 / 0.55));
-    pointer-events: none;
-  }
-  .floppybox {
-    left: 10%;
-    width: 14cqw;
-    bottom: calc(100cqh - 42.4cqw);
-    filter: drop-shadow(0 0.5cqw 0.6cqw rgb(0 0 0 / 0.5));
-  }
-  .cdwallet {
-    left: 88%;
-    width: 9.5cqw;
-    bottom: calc(100cqh - 43.3cqw);
-    filter: drop-shadow(0 0.4cqw 0.6cqw rgb(0 0 0 / 0.5));
-  }
-  .modem {
-    left: 72.5%;
-    width: 13cqw;
-    bottom: calc(100cqh - 41.7cqw);
+  .catalogue {
+    /* On the shelf, right of the middle: clear of the tallest monitor. */
+    left: 61%;
+    width: 10cqw;
+    bottom: calc(100cqh - 11.7cqw);
+    filter: drop-shadow(0 0.3cqw 0.5cqw rgb(0 0 0 / 0.5));
   }
   .pinned {
     position: absolute;
@@ -368,8 +330,39 @@
     rotate: -1deg;
     scale: 1.08;
   }
+  .calendar {
+    left: 4%;
+    top: 6cqw;
+    width: 7.5cqw;
+    padding: 0.5cqw;
+    background: #fff;
+    text-align: center;
+    rotate: -3deg;
+  }
+  .calendar b {
+    display: block;
+    margin-bottom: 0.3cqw;
+    padding: 0.2cqw 0;
+    background: #9b1d20;
+    color: #fff;
+    font: 1.5cqw "Permanent Marker", cursive;
+  }
+  .calendar .grid {
+    display: grid;
+    grid-template-columns: repeat(7, 1fr);
+    gap: 0.1cqw;
+    font: 0.7cqw/1.2 "VT323", monospace;
+    color: #333;
+  }
+  .calendar i {
+    font-style: normal;
+  }
+  .calendar i.today {
+    outline: 0.1cqw solid #9b1d20;
+    border-radius: 50%;
+  }
   .flyer {
-    /* On the cork board, right of the setup card. */
+    /* On the cork board, right of the calendar. */
     left: 14.5%;
     top: 5.5cqw;
     width: 10.5cqw;
@@ -383,7 +376,7 @@
   .flyer b {
     display: block;
     margin-bottom: 0.3cqw;
-    font: 1.55cqw/1 "Permanent Marker", cursive;
+    font: 1.3cqw/1.05 "Permanent Marker", cursive;
     color: #1b2a6b;
   }
   .flyer::before {
@@ -393,12 +386,15 @@
     rotate: 1deg;
   }
   .tabs {
-    display: flex;
+    /* Six equal strips; a vertical-text flex item sizes itself oddly. */
+    display: grid;
+    grid-template-columns: repeat(6, minmax(0, 1fr));
     margin: 0.6cqw -0.7cqw 0;
     border-top: 0.1cqw dashed #999;
   }
   .tabs i {
-    flex: 1;
+    min-width: 0;
+    overflow: hidden;
     height: 4.6cqw;
     border-right: 0.1cqw dashed #bbb;
     writing-mode: vertical-rl;
@@ -504,6 +500,20 @@
     padding: 0 0.3em;
     border: 1px solid #6b604a;
     border-radius: 3px;
+  }
+  .mute {
+    position: fixed;
+    right: 1rem;
+    bottom: 0.8rem;
+    z-index: 40;
+    border: 0;
+    background: none;
+    font-size: 1.3rem;
+    opacity: 0.6;
+    cursor: pointer;
+  }
+  .mute:hover {
+    opacity: 1;
   }
   .sticky {
     position: fixed;

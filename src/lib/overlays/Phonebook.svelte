@@ -1,19 +1,9 @@
 <script lang="ts">
   import Overlay from "./Overlay.svelte";
   import { machine } from "../emulator/machine.svelte";
-  import { sfx } from "../sfx";
 
-  const s = machine.settings;
-  let muted = $state(sfx.muted);
-  let relayUrl = $state(s.network.kind === "relay" ? s.network.url : "wss://relay.widgetry.org/");
-  let corsProxy = $state(s.network.kind === "fetch" ? (s.network.corsProxy ?? "") : "");
   let newNumber = $state("");
   let newUrl = $state("");
-
-  function network(kind: "none" | "fetch" | "relay") {
-    machine.settings.network =
-      kind === "none" ? { kind } : kind === "fetch" ? { kind, ...(corsProxy ? { corsProxy } : {}) } : { kind, url: relayUrl };
-  }
 
   function addNumber() {
     if (!newNumber || !newUrl) return;
@@ -27,42 +17,9 @@
   }
 </script>
 
-<Overlay label="System setup">
+<Overlay label="Modem phone book">
   <div class="card">
-    <h1>My PC <small>— setup notes</small></h1>
-
-    <section>
-      <h3>Case</h3>
-      <label><input type="radio" bind:group={machine.settings.caseStyle} value="tower" /> midi tower</label>
-      <label><input type="radio" bind:group={machine.settings.caseStyle} value="desktop" /> desktop</label>
-    </section>
-
-    <section>
-      <h3>Monitor</h3>
-      <label><input type="radio" bind:group={machine.settings.display} value="crt" /> 15" CRT</label>
-      <label><input type="radio" bind:group={machine.settings.display} value="lcd" /> 15" LCD (fancy!)</label>
-    </section>
-
-    <section>
-      <h3>RAM</h3>
-      {#each [8, 16, 32, 64, 128, 256] as mb}
-        <label><input type="radio" bind:group={machine.settings.memoryMB} value={mb} /> {mb}MB</label>
-      {/each}
-    </section>
-
-    <section>
-      <h3>Network card <small>(NE2000)</small></h3>
-      <label><input type="radio" checked={s.network.kind === "none"} name="net" onchange={() => network("none")} /> unplugged</label>
-      <label title="HTTP only, straight from the browser">
-        <input type="radio" checked={s.network.kind === "fetch"} name="net" onchange={() => network("fetch")} /> web only (fetch)
-      </label>
-      <label><input type="radio" checked={s.network.kind === "relay"} name="net" onchange={() => network("relay")} /> ethernet relay</label>
-      {#if machine.settings.network.kind === "relay"}
-        <input class="line" bind:value={relayUrl} onchange={() => network("relay")} placeholder="wss://relay…" />
-      {:else if machine.settings.network.kind === "fetch"}
-        <input class="line" bind:value={corsProxy} onchange={() => network("fetch")} placeholder="CORS proxy (optional), e.g. https://proxy/?url=" />
-      {/if}
-    </section>
+    <h1>Phone book <small>— by the modem</small></h1>
 
     <section>
       <h3>Modem <small>(56K on COM2)</small></h3>
@@ -87,15 +44,9 @@
       {/if}
     </section>
 
-    <section>
-      <h3>Speaker</h3>
-      <label><input type="checkbox" checked={!muted} onchange={(e) => { muted = !e.currentTarget.checked; sfx.setMuted(muted); }} /> clicks, whirrs &amp; grinding</label>
-    </section>
-
     <p class="foot">
-      {#if machine.power !== "off"}RAM, network &amp; modem take effect next time you switch on.{/if}
-      Powered by <a href="https://github.com/copy/v86" target="_blank" rel="noreferrer">v86</a> &amp;
-      <a href="https://github.com/emdzej/csfs" target="_blank" rel="noreferrer">csfs</a>.
+      {#if machine.power !== "off"}The phone line is plugged in or out next time you switch on.{/if}
+      Dial with <code>ATDT</code> from any terminal program on COM2.
     </p>
   </div>
 </Overlay>
@@ -141,7 +92,6 @@
     margin-right: 2cqw;
     cursor: pointer;
   }
-  input[type="radio"],
   input[type="checkbox"] {
     accent-color: #1b2a6b;
     width: 1.6cqw;
@@ -181,8 +131,5 @@
   .foot {
     font-size: 1.7cqw;
     color: #555;
-  }
-  a {
-    color: #1b2a6b;
   }
 </style>

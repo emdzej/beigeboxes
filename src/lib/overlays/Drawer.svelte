@@ -15,7 +15,6 @@
 
   const installed = $derived(new Set([machine.hda?.id, machine.hdb?.id].filter(Boolean)));
   const drives = $derived(ui.of("hdd").filter((m) => !installed.has(m.id)));
-  const locked = $derived(machine.power !== "off");
   let selected = $state<MediaItem | null>(null);
   let fileInput: HTMLInputElement;
   let busy = $state<string | null>(null);
@@ -24,18 +23,6 @@
     let h = 0;
     for (const c of id) h = (h * 17 + c.charCodeAt(0)) % 997;
     return (h % 13) - 6;
-  }
-
-  function install(slot: "hda" | "hdb") {
-    if (!selected) return;
-    if (machine.installHdd(slot, selected)) {
-      ui.say(`${selected.label} is now ${slot === "hda" ? "C: (primary master)" : "D: (primary slave)"}`);
-      selected = null;
-    }
-  }
-
-  function uninstall(slot: "hda" | "hdb") {
-    machine.installHdd(slot, null);
   }
 
   async function unwrap() {
@@ -93,27 +80,6 @@
 
 <Overlay label="Hard disk drawer">
   <div class="layout">
-    <aside class="ide" class:locked>
-      <h2>Inside the case</h2>
-      <p class="cable">40-pin IDE · primary channel</p>
-      {#each [["hda", "MASTER · C:"], ["hdb", "SLAVE · D:"]] as [slot, name]}
-        {@const media = slot === "hda" ? machine.hda : machine.hdb}
-        <div class="bay">
-          <span class="jumper">{name}</span>
-          {#if media}
-            <div class="mounted">
-              <HardDrive {media} />
-              {#if !locked}<button class="pull" onclick={() => uninstall(slot as "hda" | "hdb")}>pull out</button>{/if}
-            </div>
-          {:else if selected && !locked}
-            <button class="empty target" onclick={() => install(slot as "hda" | "hdb")}>install here</button>
-          {:else}
-            <div class="empty">empty bay</div>
-          {/if}
-        </div>
-      {/each}
-      {#if locked}<p class="warn">⚡ It's running. Power off before touching the drives.</p>{/if}
-    </aside>
 
     <div class="drawer">
       <img src="art/drawer.webp" alt="An open wooden drawer" draggable="false" />
@@ -137,8 +103,7 @@
   <footer>
     {#if selected}
       <span class="sel-name">{selected.label}:</span>
-      <button disabled={locked} onclick={() => install("hda")}>install as C:</button>
-      <button disabled={locked} onclick={() => install("hdb")}>install as D:</button>
+      <span class="hint">to fit it, open the case with the screwdriver</span>
       <button onclick={() => download(selected!)}>save a copy…</button>
       {#if selected.home === "drawer"}<button class="danger" onclick={() => bin(selected!)}>throw away</button>{/if}
     {:else}
@@ -154,76 +119,6 @@
 <style>
   .layout {
     display: grid;
-    grid-template-columns: 22cqw 1fr;
-    gap: 2cqw;
-    align-items: start;
-  }
-  .ide {
-    padding: 1.5cqw;
-    border-radius: 1cqw;
-    background:
-      repeating-linear-gradient(90deg, rgb(255 255 255 / 0.03) 0 1px, transparent 1px 6px),
-      linear-gradient(#2c3a2c, #1c261c);
-    box-shadow: inset 0 0 0 0.3cqw #475647, 0 2cqw 3cqw rgb(0 0 0 / 0.6);
-    color: #d7e8c8;
-    font: 1.4cqw/1.2 "VT323", monospace;
-  }
-  .ide h2 {
-    margin: 0 0 0.3cqw;
-    font: 2.2cqw "Permanent Marker", cursive;
-    color: #f0e6c8;
-  }
-  .cable {
-    margin: 0 0 1cqw;
-    padding: 0.3cqw;
-    background: repeating-linear-gradient(90deg, #ccc 0 2px, #999 2px 4px);
-    color: #222;
-    text-align: center;
-    border-left: 0.6cqw solid #c33;
-  }
-  .bay {
-    margin-bottom: 1cqw;
-  }
-  .jumper {
-    display: block;
-    margin-bottom: 0.4cqw;
-    color: #ffd27a;
-  }
-  .mounted {
-    position: relative;
-    width: 60%;
-    margin: 0 auto;
-  }
-  .pull {
-    position: absolute;
-    bottom: 4%;
-    left: 50%;
-    translate: -50% 0;
-    font: 1.3cqw "Caveat", cursive;
-    font-weight: 700;
-  }
-  .empty {
-    display: grid;
-    place-items: center;
-    height: 9cqw;
-    border: 0.25cqw dashed #6f866f;
-    border-radius: 0.6cqw;
-    color: #8da58d;
-    width: 100%;
-    background: none;
-    font: inherit;
-  }
-  .target {
-    border-color: #ffd27a;
-    color: #ffd27a;
-    cursor: pointer;
-    animation: pulse 1s ease-in-out infinite alternate;
-  }
-  @keyframes pulse {
-    to { background: rgb(255 210 122 / 0.12); }
-  }
-  .warn {
-    color: #ff9a7a;
   }
   .drawer {
     position: relative;
@@ -297,9 +192,8 @@
   footer button:nth-child(even) {
     rotate: 1.2deg;
   }
-  footer button:disabled {
-    opacity: 0.4;
-    cursor: not-allowed;
+  .hint {
+    font-style: italic;
   }
   footer .danger {
     color: #9b1d20;

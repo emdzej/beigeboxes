@@ -20,9 +20,8 @@
 <button
   class="modem"
   class:unplugged={!machine.settings.modem.enabled}
-  style="aspect-ratio:{MODEM.size[0]}/{MODEM.size[1]}"
-  title={machine.settings.modem.enabled ? "56K modem on COM2 — phonebook" : "Modem (unplugged) — set it up"}
-  onclick={() => ui.open("setup")}
+  title={machine.settings.modem.enabled ? "56K modem on COM2 — phonebook" : "Modem (unplugged) — the phone book"}
+  onclick={() => ui.open("phonebook")}
 >
   <img src={MODEM.image} alt="An external 56K modem" draggable="false" />
   {#each MODEM.leds as x, i}

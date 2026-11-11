@@ -4,7 +4,7 @@ import { machine } from "./emulator/machine.svelte";
 /** A PC reads raw sector images; the extension is only a name. */
 const PC_FORMATS = ["img", "ima", "vfd", "flp", "dsk", "iso", "hdd", "hda", "raw", "bin", "vhd"];
 
-export type Overlay = "floppies" | "cds" | "drawer" | "phonebook" | "support" | "inside" | "catalogue" | "carts" | "tapes" | null;
+export type Overlay = "floppies" | "cds" | "drawer" | "phonebook" | "support" | "inside" | "catalogue" | "carts" | "tapes" | "rom" | null;
 
 /** What is open on the desk, and everything that can be put in a drive. */
 class Ui {

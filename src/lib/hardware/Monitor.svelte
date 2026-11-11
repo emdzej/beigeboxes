@@ -62,7 +62,9 @@
     <div class="fx"></div>
   </div>
 
-  <button class="power" style={place(geo.power)} title="Monitor power" onclick={() => machine.toggleMonitor()}></button>
+  {#if geo.power}
+    <button class="power" style={place(geo.power)} title="Monitor power" onclick={() => machine.toggleMonitor()}></button>
+  {/if}
   {#if geo.led}
     <i class="led" class:on={machine.monitorOn} class:standby={machine.monitorOn && !signal} style={dot(geo.led, 0.014, aspect)}></i>
   {/if}

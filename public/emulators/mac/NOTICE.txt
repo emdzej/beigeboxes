@@ -1,0 +1,14 @@
+beigeboxes: Macintosh emulator (public/emulators/mac/)
+
+snow_web_bg.wasm is built from emulators/snow-web in the beigeboxes repository
+(GPL-3.0-or-later). It statically links:
+
+- Snow, a classic Macintosh emulator, (c) Thomas W. <thomas@thomasw.dev> and
+  contributors, MIT licence (LICENSE-Snow-MIT.txt). https://github.com/twvd/snow
+  Built from commit e339af646787bac5effed80426c38be5a2c291cd with the changes in
+  emulators/snow-web/patches/snow-wasm.patch (wasm32 build fixes and four
+  accessors on Emulator).
+- Rust crates under MIT and/or Apache-2.0 licences (see emulators/snow-web/Cargo.lock).
+
+No Apple ROM or system software is included. The Macintosh ROM is supplied by
+the user and stays in their browser.

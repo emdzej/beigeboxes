@@ -1,0 +1,22 @@
+<!doctype html>
+<!-- Not shipped: a page to drive src/lib/emulator/drivers/atari.ts without the desk.
+     Serve with the repo as Vite root on a spare port:
+       pnpm exec vite --port 5299 --strictPort
+     then open /emulators/atari800-web/test/harness.html?fda=/media/floppy/x.atr&cart=...&tape=... -->
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <title>atari800 harness</title>
+    <style>
+      body { background: #222; color: #ddd; font: 13px monospace; }
+      #screen { position: relative; width: 672px; height: 480px; background: #000; }
+      #screen canvas { width: 100%; height: 100%; image-rendering: pixelated; }
+      #screen div { position: absolute; inset: 0; }
+    </style>
+  </head>
+  <body>
+    <div id="screen"><canvas></canvas><div>text layer</div></div>
+    <pre id="log"></pre>
+    <script type="module" src="./harness.ts"></script>
+  </body>
+</html>

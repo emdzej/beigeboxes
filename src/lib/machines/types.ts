@@ -91,6 +91,8 @@ export interface DriverHost {
   started(): void;
   modem: { set(led: "oh" | "cd" | "tr", on: boolean): void; blink(led: "sd" | "rd"): void };
   say(text: string): void;
+  /** The guest let go of a disk by itself (a Mac ejects its own); the drive is empty now. */
+  ejected?(slot: Slot): void;
 }
 
 export interface BootConfig {

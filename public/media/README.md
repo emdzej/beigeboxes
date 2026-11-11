@@ -29,6 +29,11 @@ file at 100 MB.
 | `floppy/aros-boot.adf` | AROS m68k boot floppy, nightly 2026-11-10 | AROS Public License — <https://aros.sourceforge.io/nightly1.php> |
 | `cart/soulless.crt` | Soulless, C64 cartridge build | MIT — <https://github.com/GeorgRottensteiner/Soulless> |
 | `tape/hello.tap` | A one-line BASIC program on tape, made for beigeboxes | GPL-3.0-or-later, like the rest of the site |
+| `floppy/scorch.xex` | Scorch v1.56, Atari 8-bit, by Pecus & pirx | The Unlicense — <https://github.com/pkali/scorch_src> |
+| `floppy/averybreakout.xex` | Avery Breakout v1.00, Atari 8-bit, by Pawel Kalinowski and Pecus, music by Alex, "Mild West" font by DamienG | MIT — <https://github.com/pkali/Avery_Breakout> |
+| `cart/aqordl.car` | AQordl v1.04, Atari 8-bit XEGS cartridge, by Gerald Reno, Jr | Apache-2.0 — <https://github.com/glreno/wordy>; licence and NOTICE in `licenses/` |
+| `floppy/gryversi.dsk` | Gryversi 1.0.1c, a Reversi game for the Mac by Paul C. Pratt, with its source. Not a boot disk | GPL-2.0 — <https://www.gryphel.com/c/sw/games/gryversi/> |
+| `tape/hello.cas` | An Atari boot tape, made for beigeboxes | GPL-3.0-or-later, like the rest of the site |
 
 The FreeDOS, KolibriOS, OpenBSD and Linux images are the builds published by
 the v86 project at <https://copy.sh/v86/>.

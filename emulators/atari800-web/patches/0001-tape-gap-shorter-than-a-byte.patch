@@ -1,0 +1,24 @@
+commit dc593014472d95673d561b059f5230e78a944f9e
+Author: Chris Dixon <meischris39@hotmail.com>
+Date:   Mon Oct 5 17:42:07 2026 +0100
+
+    Don't hang skipping a tape gap shorter than a byte (#295)
+    
+    With the SIO patch, IMG_TAPE_SkipToData() turns the time left into whole
+    bytes. Under one byte's time (17 ms at 600 baud) that is zero, so neither
+    the position nor the time left changes and the loop never ends.
+
+diff --git a/src/img_tape.c b/src/img_tape.c
+index 7a97654..b3c11bc 100644
+--- a/src/img_tape.c
++++ b/src/img_tape.c
+@@ -546,6 +546,9 @@ int IMG_TAPE_SkipToData(IMG_TAPE_t *file, int ms)
+ 				file->next_blockbyte = file->block_length;
+ 			} else {
+ 				int bytes = ms * (file->isCAS ? file->block_baudrates[file->current_block] : 600) / 1000 / 10;
++				if (bytes == 0)
++					/* Less than a byte's time left to skip */
++					break;
+ 				if (bytes > file->block_length - file->next_blockbyte)
+ 					bytes = file->block_length - file->next_blockbyte;
+ 				file->next_blockbyte += bytes;

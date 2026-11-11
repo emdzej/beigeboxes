@@ -1,0 +1,14 @@
+atari800 ATARI800_7_2_1 (63a381884175e3cbfc745ff00dfb3d70d928eb50), https://github.com/atari800/atari800.git
+Copyright (C) the Atari800 development team (see DOC/CREDITS in the source).
+GNU General Public License, version 2 or later: COPYING.txt.
+
+Built as libatari800 with Emscripten by emulators/atari800-web/build.sh, with the
+glue in emulators/atari800-web/src/bbx.c and the fixes in
+emulators/atari800-web/patches/ (source: the beigeboxes repository).
+
+The operating system and BASIC are AltirraOS 3.49 and Altirra BASIC 1.59,
+Copyright (C) Avery Lee,
+compiled into atari800 (src/roms/): "Copying and distribution of this file, with
+or without modification, are permitted in any medium without royalty provided the
+copyright notice and this notice are preserved. This file is offered as-is,
+without any warranty."

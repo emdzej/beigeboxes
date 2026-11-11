@@ -94,7 +94,8 @@ export interface MonitorGeometry {
    * emulator screen sits behind the photo and the bezel frames it.
    */
   glass: Rect;
-  power: Rect;
+  /** No button: a compact Mac's screen goes on with the machine. */
+  power?: Rect;
   /** A TV has no power light: the picture is the light. */
   led?: Point;
 }
@@ -257,4 +258,65 @@ export const A500_PSU = {
   image: "art/amiga/psu.webp",
   size: [600, 368] as [number, number],
   power: { x: 0.358, y: 0.701, w: 0.142, h: 0.147 } as Rect,
+};
+
+/** The Atari's 14" portable TV: the rocker under the knobs, the red light beside it. */
+export const ATARI_TV: MonitorGeometry = {
+  image: "art/atari/tv.webp",
+  size: [1200, 891],
+  glass: { x: 0.0833, y: 0.1077, w: 0.6583, h: 0.7026 },
+  power: { x: 0.85, y: 0.483, w: 0.054, h: 0.045 },
+  led: { x: 0.94, y: 0.509 },
+};
+
+/** The 65XE from the front: its power light at the front left. */
+export const XE65 = {
+  image: "art/atari/65xe.webp",
+  size: [1600, 514] as [number, number],
+  led: { x: 0.0455, y: 0.835 } as Point,
+  ledSize: 0.011,
+};
+
+/** The 65XE's back panel, close up: the power switch and the cartridge slot. */
+export const XE65_BACK = {
+  image: "art/atari/back.webp",
+  power: { x: 0.08, y: 0.3625, w: 0.1, h: 0.15 } as Rect,
+  cart: { x: 0.375, y: 0.3625, w: 0.5625, h: 0.1375 } as Rect,
+};
+
+/** The 1050: a slot with a turn-down latch, power and busy lights on the right. */
+export const DRIVE1050 = {
+  image: "art/atari/1050.webp",
+  size: [1000, 538] as [number, number],
+  slot: { x: 0.12, y: 0.58, w: 0.76, h: 0.1 } as Rect,
+  lever: { x: 0.565, y: 0.51, w: 0.065, h: 0.31 } as Rect,
+  power: { x: 0.761, y: 0.539 } as Point,
+  busy: { x: 0.846, y: 0.539 } as Point,
+  ledSize: 0.03,
+};
+
+/** The XC12 from the front: the cassette lid, the piano keys. */
+export const XC12 = {
+  image: "art/atari/xc12.webp",
+  size: [900, 797] as [number, number],
+  lid: { x: 0.108, y: 0.32, w: 0.79, h: 0.26 } as Rect,
+  keys: {
+    play: { x: 0.233, y: 0.7, w: 0.13, h: 0.157 },
+    rewind: { x: 0.37, y: 0.7, w: 0.127, h: 0.157 },
+    stop: { x: 0.638, y: 0.7, w: 0.126, h: 0.157 },
+  } as Record<"play" | "rewind" | "stop", Rect>,
+};
+
+/** The Mac Plus is its own monitor: the glass, and the floppy slot under it. */
+export const MAC_PLUS: MonitorGeometry & { slot: Rect } = {
+  image: "art/mac/macplus.webp",
+  size: [710, 1000],
+  glass: { x: 0.1324, y: 0.112, w: 0.7352, h: 0.396 },
+  slot: { x: 0.5, y: 0.655, w: 0.4, h: 0.05 },
+};
+
+/** The back of the Mac, close up: the rocker above the mains socket. */
+export const MAC_BACK = {
+  image: "art/mac/back.webp",
+  power: { x: 0.161, y: 0.42, w: 0.125, h: 0.179 } as Rect,
 };

@@ -39,12 +39,21 @@ export interface MediaItem {
 const FLOPPY_MAX = 2_949_120;
 const DISK_EXT = /\.(img|ima|vfd|flp|dsk|iso|hdd|hda|raw|bin|vhd)$/i;
 
-/** Cartridge dumps: NES (iNES), C64 (CRT). */
-const CART_EXT = /\.(nes|crt)$/i;
-/** C64 tapes. */
-const TAPE_EXT = /\.(tap)$/i;
-/** Disks in a home computer's own format: C64 (D64, G64, or a bare PRG), Amiga (ADF). */
-const HOME_FLOPPY_EXT = /\.(d64|g64|prg|adf)$/i;
+/** Cartridge dumps: NES (iNES), C64 (CRT), Atari (CAR, or a bare ROM). */
+const CART_EXT = /\.(nes|crt|car|rom)$/i;
+/** Tapes: C64 (TAP), Atari (CAS). */
+const TAPE_EXT = /\.(tap|cas)$/i;
+/**
+ * Disks in a home computer's own format: C64 (D64, G64, or a bare PRG),
+ * Amiga (ADF), Atari (ATR, XFD, ATX, or a bare XEX/COM/EXE program), Mac
+ * (DiskCopy 4.2 .image/.dc42, MOOF). A raw Mac .dsk is a plain disk image.
+ */
+const HOME_FLOPPY_EXT = /\.(d64|g64|prg|adf|atr|xfd|atx|xex|com|exe|image|dc42|moof)$/i;
+
+/** The formats in `formats` that go in a `kind` slot, as an `accept` list for a file picker. */
+export function acceptFor(formats: string[], kind: MediaKind): string {
+  return formats.filter((f) => classify(`x.${f}`, 0) === kind).map((f) => `.${f}`).join(",");
+}
 
 export function classify(path: string, size: number): MediaKind | null {
   const lower = path.toLowerCase();

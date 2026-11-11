@@ -3,17 +3,24 @@
   import Cart from "../media/Cart.svelte";
   import { ui } from "../ui.svelte";
   import { machine } from "../emulator/machine.svelte";
-  import { importToDrawer, type MediaItem } from "../media/library";
+  import { acceptFor, importToDrawer, type MediaItem } from "../media/library";
 
   const carts = $derived(ui.of("cart").filter((m) => m.id !== machine.cart?.id));
   let picked = $state<string | null>(null);
   let fileInput: HTMLInputElement;
+  const accept = $derived(acceptFor(machine.model.formats ?? ["nes"], "cart"));
+  /** Where the cartridge goes, said as you'd say it on that machine. */
+  const WHERE: Record<string, string> = {
+    nes: "Push it down and switch on.",
+    c64: "It's in the expansion port. Switch on.",
+    "atari-65xe": "It's in the slot at the back. Switch on.",
+  };
 
   async function insert(media: MediaItem) {
     picked = media.id;
     await new Promise((r) => setTimeout(r, 380));
     ui.close();
-    if (machine.setCart(media)) ui.say(machine.model.id === "nes" ? `${media.label} is in. Push it down and switch on.` : `${media.label} is in the expansion port. Switch on.`);
+    if (machine.setCart(media)) ui.say(`${media.label} is in. ${WHERE[machine.model.id] ?? "Switch on."}`);
   }
 
   async function imported(e: Event) {
@@ -40,10 +47,10 @@
     {#if !carts.length}<p class="empty">Nothing here. The cartridge is in the console.</p>{/if}
   </div>
   <div class="extras">
-    <button onclick={() => fileInput.click()}>+ cartridge from a {machine.model.id === "c64" ? ".crt" : ".nes"} file…</button>
+    <button onclick={() => fileInput.click()}>+ cartridge from a {accept.split(",").join(" / ")} file…</button>
   </div>
   <p class="hint">Pick a cartridge. It only goes in with the console off.</p>
-  <input bind:this={fileInput} type="file" multiple accept={machine.model.id === "c64" ? ".crt" : ".nes"} hidden onchange={imported} />
+  <input bind:this={fileInput} type="file" multiple {accept} hidden onchange={imported} />
 </Overlay>
 
 <style>

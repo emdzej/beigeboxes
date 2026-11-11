@@ -358,6 +358,9 @@ export class Machine {
         },
       },
       say: (text) => (this.message = text),
+      ejected: (slot) => {
+        if (slot === "fda" || slot === "fdb") this[slot] = null;
+      },
     };
   }
 

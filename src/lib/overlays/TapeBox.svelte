@@ -2,15 +2,22 @@
   import Overlay from "./Overlay.svelte";
   import { ui } from "../ui.svelte";
   import { machine } from "../emulator/machine.svelte";
-  import { importToDrawer, type MediaItem } from "../media/library";
+  import { acceptFor, importToDrawer, type MediaItem } from "../media/library";
 
   const tapes = $derived(ui.of("tape").filter((m) => m.id !== machine.tape?.id));
   let fileInput: HTMLInputElement;
+  const atari = $derived(machine.model.id === "atari-65xe");
+  const accept = $derived(acceptFor(machine.model.formats ?? ["tap"], "tape"));
 
   async function insert(media: MediaItem) {
     ui.close();
     await machine.insertTape(media);
-    ui.say(`${media.label} is in. Type LOAD"",1 then press PLAY.`, 5000);
+    ui.say(
+      atari
+        ? `${media.label} is in. Switched on with it in, it boots by itself; in BASIC, type CLOAD and press PLAY.`
+        : `${media.label} is in. Type LOAD"",1 then press PLAY.`,
+      5000,
+    );
   }
 
   async function imported(e: Event) {
@@ -29,11 +36,13 @@
         <span class="window"><i></i><i></i></span>
       </button>
     {/each}
-    {#if !tapes.length}<p class="empty">No cassettes. The one you had is in the Datasette.</p>{/if}
+    {#if !tapes.length}<p class="empty">No cassettes. The one you had is in the {atari ? "recorder" : "Datasette"}.</p>{/if}
   </div>
-  <div class="extras"><button onclick={() => fileInput.click()}>+ cassette from a .tap file…</button></div>
-  <p class="hint">On these ROMs a plain LOAD asks the disk drive: tapes need LOAD"",1.</p>
-  <input bind:this={fileInput} type="file" multiple accept=".tap" hidden onchange={imported} />
+  <div class="extras"><button onclick={() => fileInput.click()}>+ cassette from a {accept.split(",").join(" / ")} file…</button></div>
+  <p class="hint">
+    {atari ? "Put a tape in and switch on: it boots by itself. The leader takes ten seconds." : 'On these ROMs a plain LOAD asks the disk drive: tapes need LOAD"",1.'}
+  </p>
+  <input bind:this={fileInput} type="file" multiple {accept} hidden onchange={imported} />
 </Overlay>
 
 <style>

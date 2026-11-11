@@ -6,6 +6,8 @@
   import Nes from "./lib/desks/Nes.svelte";
   import C64 from "./lib/desks/C64.svelte";
   import Amiga from "./lib/desks/Amiga.svelte";
+  import Atari from "./lib/desks/Atari.svelte";
+  import Mac from "./lib/desks/Mac.svelte";
   import FloppyBox from "./lib/overlays/FloppyBox.svelte";
   import CdWallet from "./lib/overlays/CdWallet.svelte";
   import Drawer from "./lib/overlays/Drawer.svelte";
@@ -14,6 +16,7 @@
   import Catalogue from "./lib/overlays/Catalogue.svelte";
   import CartBox from "./lib/overlays/CartBox.svelte";
   import TapeBox from "./lib/overlays/TapeBox.svelte";
+  import RomBox from "./lib/overlays/RomBox.svelte";
   import { sfx } from "./lib/sfx";
   import TechSupport from "./lib/overlays/TechSupport.svelte";
   import { support } from "./lib/support.svelte";
@@ -37,6 +40,8 @@
     nes: Nes,
     c64: C64,
     "amiga-500": Amiga,
+    "atari-65xe": Atari,
+    "mac-plus": Mac,
   };
   /** The one line of instructions under the desk, for whatever is on it. */
   const INTRO: Record<string, string> = {
@@ -46,6 +51,10 @@
       "Flip the big red switch on the side. 5¼-inch disks are in the box; turn a drive's lever to let one out.<br />The screwdriver opens the case, the catalogue on the shelf has other machines.",
     c64: "The power switch is on its right side: there's a close-up beside it. Disks go in the 1541; cassettes in the Datasette, then LOAD\"\",1 and PLAY.<br />Cartridges go in with the power off. A gamepad is the joystick in port 2.",
     "amiga-500": "The power switch is on the brick. The drive is on the right-hand side: put the AROS disk in it.<br />The screwdriver turns it over: the trapdoor takes a memory card, and AROS gets further with the 1.5 MB one.",
+    "atari-65xe":
+      "The power switch and the cartridge slot are round the back: there's a close-up beside it. Disks go in the 1050, cassettes in the XC12.<br />With nothing in, it starts in BASIC. F2, F3 and F4 are START, SELECT and OPTION; a gamepad is the joystick.",
+    "mac-plus":
+      "Bring your own ROM: it's in the envelope, and it stays in this browser. The power switch is round the back.<br />Disks go in the slot under the screen; the Mac ejects them itself. The mouse is your mouse.",
     nes: "Lift the flap and put a cartridge in, then press POWER. Arrows, Z and X, Enter for Start; a gamepad works too.<br />The catalogue on the shelf has other machines. Drop your own .nes anywhere.",
   };
   const Desk = $derived(DESKS[machine.model.id] ?? Pc96);
@@ -216,6 +225,7 @@
   {#if ui.overlay === "catalogue"}<Catalogue />{/if}
   {#if ui.overlay === "carts"}<CartBox />{/if}
   {#if ui.overlay === "tapes"}<TapeBox />{/if}
+  {#if ui.overlay === "rom"}<RomBox />{/if}
   {#if ui.overlay === "support"}<TechSupport />{/if}
 </main>
 

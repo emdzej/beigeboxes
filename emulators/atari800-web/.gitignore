@@ -1,0 +1,6 @@
+build/
+test/*.atr
+test/*.cas
+test/*.xex
+test/*.car
+test/*.rom

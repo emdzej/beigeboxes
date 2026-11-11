@@ -1,0 +1,16 @@
+AltirraOS was updated to 3.49 (7f09e6c) but the SIO patch still put its ESC for
+the tape leader wait at 3.11's CassetteWait ($EE4A). In 3.49 that is the start
+of CassetteClose, so a patched tape boot never ran, and CassetteWait itself
+(now at $EE67, called from CassetteOpen at $ED72) waited out the whole leader.
+
+--- a/src/esc.c
++++ b/src/esc.c
+@@ -223,7 +223,7 @@
+ 			/* Fall through. */
+ 		case SYSROM_ALTIRRA_XL:
+ 			altirra = TRUE;
+-			addr_l = 0xee4a; /* points to CassetteWait */
++			addr_l = 0xee67; /* points to CassetteWait (AltirraOS 3.49) */
+ 			break;
+ #endif /* EMUOS_ALTIRRA */
+ 		default:

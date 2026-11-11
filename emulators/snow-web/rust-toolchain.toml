@@ -1,0 +1,4 @@
+[toolchain]
+# Matches Snow's own rust-toolchain.toml at the pinned revision.
+channel = "1.95.0"
+targets = ["wasm32-unknown-unknown"]

@@ -3,18 +3,21 @@
   import Floppy from "../media/Floppy.svelte";
   import { ui } from "../ui.svelte";
   import { machine } from "../emulator/machine.svelte";
-  import { importToDrawer, newFloppy, XT_FLOPPY_MAX, type MediaItem } from "../media/library";
+  import { acceptFor, importToDrawer, newFloppy, XT_FLOPPY_MAX, type MediaItem } from "../media/library";
 
-  /** The XT and the 1541 take 5¼" disks; the XT's are double density, so only those it can read are in its box. */
-  const five = $derived(machine.model.id === "pc-xt" || machine.model.id === "c64");
+  /** The XT, the 1541 and the 1050 take 5¼" disks; the XT's are double density, so only those it can read are in its box. */
+  const five = $derived(["pc-xt", "c64", "atari-65xe"].includes(machine.model.id));
   const xt = $derived(machine.model.id === "pc-xt");
   const amiga = $derived(machine.model.id === "amiga-500");
-  /** A blank to format: the PCs format raw images, AmigaDOS an empty ADF. A 1541 blank needs a real 1541 ROM. */
-  const blanks = $derived(machine.model.id !== "c64");
+  /**
+   * A blank to format: the PCs format raw images, AmigaDOS an empty ADF. A
+   * 1541 blank needs a real 1541 ROM, and an Atari has no DOS on the shelf.
+   */
+  const blanks = $derived(!["c64", "atari-65xe", "mac-plus"].includes(machine.model.id));
   const disks = $derived(
     ui.of("floppy").filter((m) => m.id !== machine.fda?.id && m.id !== machine.fdb?.id && (!xt || m.size <= XT_FLOPPY_MAX)),
   );
-  const accept = $derived((machine.model.formats ?? ["img", "ima", "vfd", "flp", "dsk"]).map((f) => `.${f}`).join(",") + ",.zip");
+  const accept = $derived(acceptFor(machine.model.formats ?? ["img", "ima", "vfd", "flp", "dsk"], "floppy") + ",.zip");
   const drive = $derived(ui.floppyTarget);
   const letter = $derived(drive === "fdb" ? "B" : "A");
   let picked = $state<string | null>(null);
@@ -71,7 +74,7 @@
       {#if blanks}<button onclick={blank}>+ blank disk</button>{/if}
       <button onclick={() => fileInput.click()}>+ disk from a file…</button>
     </div>
-    <p class="hint">Pick a disk to put it in {amiga ? "DF0:" : machine.model.id === "c64" ? "drive 8" : `drive ${letter}:`}. Your own disks keep what you write to them.</p>
+    <p class="hint">Pick a disk to put it in {amiga ? "DF0:" : machine.model.id === "c64" ? "drive 8" : machine.model.id === "atari-65xe" ? "D1:" : machine.model.id === "mac-plus" ? "the Mac" : `drive ${letter}:`}. Your own disks keep what you write to them.</p>
   </div>
   <input bind:this={fileInput} type="file" multiple {accept} hidden onchange={imported} />
 </Overlay>
